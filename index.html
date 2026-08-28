@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GAMIK — Dziennik elektroniczny</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0a0a; --paper:#ffffff; --bg:#f4f4f2;
+    --line:#e6e6e3; --line-2:#d6d6d2;
+    --muted:#6b6b68; --muted-2:#9a9a96;
+    --ok:#15803d; --ok-bg:#eaf5ee;
+    --warn:#b45309; --warn-bg:#fbf1e4;
+    --bad:#b91c1c; --bad-bg:#fbeaea;
+    --focus:#0a0a0a;
+    --radius:14px; --radius-sm:9px;
+    --shadow:0 1px 2px rgba(10,10,10,.05), 0 8px 30px rgba(10,10,10,.06);
+    --font:'Inter',system-ui,-apple-system,sans-serif;
+    --display:'Space Grotesk',var(--font);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:var(--font); color:var(--ink); background:var(--bg);
+    -webkit-font-smoothing:antialiased; font-size:15px; line-height:1.5;
+  }
+  a{color:inherit}
+  button{font-family:inherit}
+  ::selection{background:var(--ink); color:#fff}
+  :focus-visible{outline:2px solid var(--focus); outline-offset:2px; border-radius:6px}
+
+  /* ---------- Brand mark ---------- */
+  .mark{display:inline-flex; align-items:center; gap:12px}
+  .mark svg{display:block}
+  .mark .word{
+    font-family:var(--display); font-weight:700; letter-spacing:.34em;
+    font-size:20px; padding-left:.34em;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    appearance:none; border:1px solid var(--ink); background:var(--ink); color:#fff;
+    padding:9px 16px; border-radius:var(--radius-sm); font-size:14px; font-weight:600;
+    cursor:pointer; transition:transform .04s ease, opacity .15s ease; white-space:nowrap;
+  }
+  .btn:hover{opacity:.88}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent; color:var(--ink); border-color:var(--line-2)}
+  .btn.ghost:hover{background:#fff; opacity:1}
+  .btn.sm{padding:6px 11px; font-size:13px}
+  .btn.danger{background:transparent; color:var(--bad); border-color:var(--bad)}
+  .btn.danger:hover{background:var(--bad-bg); opacity:1}
+  .btn.ok{background:var(--ok); border-color:var(--ok)}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+
+  /* ---------- Fields ---------- */
+  label.fld{display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:600; color:var(--muted)}
+  input,select,textarea{
+    font-family:inherit; font-size:14.5px; color:var(--ink); background:#fff;
+    border:1px solid var(--line-2); border-radius:var(--radius-sm); padding:10px 12px; width:100%;
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--ink); outline-offset:0; border-color:var(--ink)}
+  textarea{resize:vertical; min-height:88px}
+  .row{display:flex; gap:12px; flex-wrap:wrap}
+  .row > *{flex:1; min-width:140px}
+
+  /* ---------- Layout ---------- */
+  .center{min-height:100%; display:grid; place-items:center; padding:24px}
+  .card{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+  .auth{width:100%; max-width:410px; padding:34px}
+  .auth h1{font-family:var(--display); font-size:22px; margin:22px 0 4px; letter-spacing:-.01em}
+  .auth p.sub{margin:0 0 22px; color:var(--muted); font-size:14px}
+  .tabs{display:flex; gap:4px; background:var(--bg); padding:4px; border-radius:var(--radius-sm); margin-bottom:20px}
+  .tabs button{flex:1; border:0; background:transparent; padding:8px; border-radius:7px; font-weight:600; font-size:14px; color:var(--muted); cursor:pointer}
+  .tabs button.active{background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  .stack{display:flex; flex-direction:column; gap:14px}
+  .msg{font-size:13.5px; padding:10px 12px; border-radius:var(--radius-sm); line-height:1.45}
+  .msg.err{background:var(--bad-bg); color:var(--bad)}
+  .msg.info{background:var(--ok-bg); color:var(--ok)}
+  .muted{color:var(--muted)}
+  .tiny{font-size:12.5px}
+
+  /* ---------- App shell ---------- */
+  header.top{
+    position:sticky; top:0; z-index:20; background:rgba(255,255,255,.85);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; padding:12px 20px; gap:16px;
+  }
+  .who{display:flex; align-items:center; gap:12px; font-size:13.5px}
+  .avatar{width:34px; height:34px; border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center; font-weight:700; font-size:14px}
+  .rolechip{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:999px; border:1px solid var(--line-2); color:var(--muted)}
+  nav.side{display:flex; gap:4px; flex-wrap:wrap}
+  nav.side button{
+    border:1px solid transparent; background:transparent; color:var(--muted); font-weight:600; font-size:14px;
+    padding:8px 13px; border-radius:999px; cursor:pointer;
+  }
+  nav.side button:hover{color:var(--ink); background:#fff; border-color:var(--line)}
+  nav.side button.active{color:#fff; background:var(--ink); border-color:var(--ink)}
+  .shell{max-width:1060px; margin:0 auto; padding:26px 20px 80px}
+  .navbar{max-width:1060px; margin:0 auto; padding:14px 20px 0}
+
+  .page-head{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin:6px 0 20px; flex-wrap:wrap}
+  .page-head h2{font-family:var(--display); font-size:24px; margin:0; letter-spacing:-.015em}
+  .eyebrow{font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-2); margin-bottom:6px}
+
+  .panel{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:20px; margin-bottom:18px}
+  .panel h3{font-size:15px; margin:0 0 14px; font-weight:700}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  @media (max-width:760px){ .grid2{grid-template-columns:1fr} }
+
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{text-align:left; padding:10px 10px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-2); font-weight:700}
+  tr:last-child td{border-bottom:0}
+  .list-empty{padding:26px; text-align:center; color:var(--muted-2); font-size:14px}
+
+  .g{display:inline-grid; place-items:center; min-width:30px; height:30px; padding:0 7px; border-radius:8px; font-weight:700; font-size:14px; border:1px solid transparent}
+  .g6,.g5{background:var(--ok-bg); color:#166534; border-color:#cfe6d7}
+  .g4{background:#eef4ff; color:#1e40af; border-color:#d6e2fb}
+  .g3{background:var(--warn-bg); color:#92400e; border-color:#f0dcc0}
+  .g2{background:#fdeede; color:#9a4a08; border-color:#f3d8b8}
+  .g1{background:var(--bad-bg); color:#991b1b; border-color:#f0cccc}
+  .g-pred{border-style:dashed !important; opacity:.95}
+
+  .badge{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:999px}
+  .b-pending{background:var(--warn-bg); color:var(--warn)}
+  .b-approved{background:var(--ok-bg); color:var(--ok)}
+  .b-rejected{background:var(--bad-bg); color:var(--bad)}
+
+  .subject-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:22px; margin-bottom:8px}
+  .subject-head h4{margin:0; font-size:16px; font-weight:700}
+  .avg{font-size:13px; color:var(--muted); font-weight:600}
+  .avg b{color:var(--ink); font-size:15px}
+  .chips{display:flex; flex-wrap:wrap; gap:7px; align-items:center}
+  .cat-line{display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:13px}
+  .cat-line .lab{color:var(--muted-2); font-weight:700; text-transform:uppercase; letter-spacing:.05em; font-size:11px; align-self:center; margin-right:2px}
+
+  .toast-wrap{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); z-index:100; display:flex; flex-direction:column; gap:8px; align-items:center}
+  .toast{background:var(--ink); color:#fff; padding:11px 18px; border-radius:999px; font-size:14px; font-weight:500; box-shadow:var(--shadow); animation:pop .2s ease}
+  .toast.err{background:var(--bad)}
+  @keyframes pop{from{transform:translateY(8px); opacity:0}}
+
+  .day-block{margin-bottom:18px}
+  .day-block .dh{font-family:var(--display); font-weight:600; font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:0 2px 8px}
+  .lesson{display:flex; align-items:center; gap:14px; padding:12px 14px; border:1px solid var(--line); border-radius:var(--radius-sm); background:#fff; margin-bottom:8px}
+  .lesson .time{font-family:var(--display); font-weight:600; font-variant-numeric:tabular-nums; min-width:104px; font-size:14.5px}
+  .lesson .subj{font-weight:600}
+  .lesson .meta{color:var(--muted); font-size:13px}
+  .lesson .spacer{flex:1}
+  .link-a{color:var(--ink); font-weight:600; text-decoration:underline; text-underline-offset:2px}
+
+  .ann{border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin-bottom:14px; background:#fff}
+  .ann h4{margin:0 0 4px; font-size:17px}
+  .ann .when{color:var(--muted-2); font-size:12.5px; margin-bottom:10px}
+  .ann .body{white-space:pre-wrap; line-height:1.55}
+
+  .overlay{position:fixed; inset:0; background:rgba(10,10,10,.4); display:grid; place-items:center; z-index:60; padding:20px}
+  .modal{background:#fff; border-radius:var(--radius); width:100%; max-width:480px; padding:24px; box-shadow:var(--shadow)}
+  .modal h3{margin:0 0 16px; font-family:var(--display); font-size:19px}
+  .modal .actions{display:flex; gap:10px; justify-content:flex-end; margin-top:20px}
+
+  .setup{max-width:560px}
+  .setup code{background:var(--bg); padding:2px 6px; border-radius:5px; font-size:13px}
+  .flexbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .hide{display:none !important}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+/* ============================================================
+   KONFIGURACJA — wklej dane ze swojego projektu Supabase.
+   Znajdziesz je w: Supabase → Project Settings → API
+   ============================================================ */
+const SUPABASE_URL = 'WKLEJ_TUTAJ_PROJECT_URL';        // np. https://abcdefgh.supabase.co
+const SUPABASE_ANON_KEY = 'WKLEJ_TUTAJ_ANON_PUBLIC_KEY';
+
+/* ------------------------------------------------------------ */
+const CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
+const sb = CONFIGURED ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+const DAYS = ['', 'Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota','Niedziela'];
+const CAT_LABEL = { regular:'Cząstkowe', predicted:'Przewidywane', final:'Końcowe' };
+
+/* ---------- helpers ---------- */
+const root = document.getElementById('root');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const el = (html) => { const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild; };
+const initials = n => (n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase() || '?';
+const t2 = t => (t||'').slice(0,5);
+const fmtDate = d => new Date(d).toLocaleDateString('pl-PL', {day:'2-digit', month:'2-digit', year:'numeric'});
+const fmtDT = d => new Date(d).toLocaleString('pl-PL', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+
+function toast(text, kind){
+  const wrap = document.getElementById('toasts');
+  const node = el(`<div class="toast ${kind==='err'?'err':''}">${esc(text)}</div>`);
+  wrap.appendChild(node);
+  setTimeout(()=>{ node.style.opacity='0'; node.style.transition='opacity .3s'; setTimeout(()=>node.remove(),300); }, 2600);
+}
+
+const CAP = `<svg width="34" height="34" viewBox="0 0 100 100" aria-hidden="true">
+  <polygon points="50,20 92,42 50,64 8,42" fill="#0a0a0a"/>
+  <path d="M30 54 v14 c0 7 9 12 20 12 s20 -5 20 -12 V54 L50 65 Z" fill="#0a0a0a"/>
+  <path d="M78 47 v20" stroke="#0a0a0a" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M78 67 q0 8 -8 8" stroke="#0a0a0a" stroke-width="4" fill="none" stroke-linecap="round"/>
+</svg>`;
+const brand = size => `<span class="mark">${CAP}<span class="word" style="${size?`font-size:${size}px`:''}">GAMIK</span></span>`;
+
+function gradeToNumber(v){
+  const m = String(v).match(/[1-6]/);
+  if(!m) return null;
+  let n = parseInt(m[0],10);
+  if(String(v).includes('+')) n += 0.5;
+  if(String(v).includes('-')) n -= 0.25;
+  return n;
+}
+function gradeClass(v){
+  const m = String(v).match(/[1-6]/);
+  return m ? 'g'+m[0] : 'g3';
+}
+function weightedAvg(grades){
+  const reg = grades.filter(g=>g.category==='regular');
+  let sum=0, w=0;
+  for(const g of reg){ const n=gradeToNumber(g.value); if(n!=null){ sum+=n*(g.weight||1); w+=(g.weight||1);} }
+  return w ? (sum/w) : null;
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let session=null, profile=null, currentTab=null;
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+if(!CONFIGURED){ renderSetup(); }
+else { init(); }
+
+async function init(){
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  sb.auth.onAuthStateChange((_e, s)=>{ session = s; route(); });
+  await route();
+}
+
+async function route(){
+  if(!session){ profile=null; return renderAuth(); }
+  // load profile
+  const { data, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+  if(error || !data){
+    // profile may still be creating; small retry
+    await new Promise(r=>setTimeout(r,600));
+    const retry = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+    profile = retry.data;
+  } else profile = data;
+
+  if(!profile){ return renderMessageScreen('Trwa tworzenie konta…', 'Odśwież stronę za chwilę.'); }
+  if(profile.status !== 'approved') return renderPending();
+  renderApp();
+}
+
+/* ============================================================
+   SETUP SCREEN
+   ============================================================ */
+function renderSetup(){
+  root.innerHTML = '';
+  root.appendChild(el(`
+    <div class="center">
+      <div class="card auth setup">
+        ${brand(22)}
+        <h1>Prawie gotowe</h1>
+        <p class="sub">Aplikacja nie jest jeszcze połączona z Twoją bazą Supabase.</p>
+        <div class="stack">
+          <div class="msg info">Otwórz plik <code>index.html</code> w edytorze i uzupełnij na górze skryptu dwie wartości:</div>
+          <div><code>SUPABASE_URL</code> — adres projektu (Project URL)</div>
+          <div><code>SUPABASE_ANON_KEY</code> — klucz publiczny <code>anon</code></div>
+          <p class="muted tiny">Znajdziesz je w panelu Supabase → <b>Project Settings → API</b>. Wcześniej uruchom też plik <code>schema.sql</code> w SQL Editorze.</p>
+        </div>
+      </div>
+    </div>`));
+}
+
+function renderMessageScreen(title, sub){
+  root.innerHTML='';
+  root.appendChild(el(`
+    <div class="center"><div class="card auth" style="text-align:center">
+      ${brand(20)}<h1>${esc(title)}</h1><p class="sub">${esc(sub||'')}</p>
+    </div></div>`));
+}
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+function renderAuth(){
+  root.innerHTML='';
+  let mode='login';
+  const wrap = el(`<div class="center"><div class="card auth"></div></div>`);
+  const box = wrap.querySelector('.auth');
+  const draw = ()=>{
+    box.innerHTML = `
+      ${brand(20)}
+      <h1>${mode==='login'?'Zaloguj się':'Załóż konto'}</h1>
+      <p class="sub">Dziennik elektroniczny nauczania indywidualnego.</p>
+      <div class="tabs">
+        <button data-m="login" class="${mode==='login'?'active':''}">Logowanie</button>
+        <button data-m="register" class="${mode==='register'?'active':''}">Rejestracja</button>
+      </div>
+      <div class="stack" id="form"></div>`;
+    box.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{mode=b.dataset.m; draw();});
+    const form = box.querySelector('#form');
+    if(mode==='login'){
+      form.appendChild(el(`
+        <label class="fld">E-mail<input type="email" id="email" autocomplete="email" placeholder="jan@przyklad.pl"></label>`));
+      form.appendChild(el(`
+        <label class="fld">Hasło<input type="password" id="pass" autocomplete="current-password" placeholder="••••••••"></label>`));
+      const btn = el(`<button class="btn" style="margin-top:4px">Zaloguj się</button>`);
+      const err = el(`<div class="msg err hide" id="err"></div>`);
+      form.append(btn, err);
+      btn.onclick = async ()=>{
+        const email=form.querySelector('#email').value.trim();
+        const password=form.querySelector('#pass').value;
+        if(!email||!password) return showErr(err,'Podaj e-mail i hasło.');
+        btn.disabled=true; btn.textContent='Logowanie…';
+        const { error } = await sb.auth.signInWithPassword({email,password});
+        btn.disabled=false; btn.textContent='Zaloguj się';
+        if(error) return showErr(err, translateAuthError(error.message));
+      };
+    } else {
+      form.appendChild(el(`<label class="fld">Imię i nazwisko<input id="name" placeholder="Jan Kowalski"></label>`));
+      form.appendChild(el(`<label class="fld">E-mail<input type="email" id="email" autocomplete="email" placeholder="jan@przyklad.pl"></label>`));
+      form.appendChild(el(`<label class="fld">Hasło<input type="password" id="pass" autocomplete="new-password" placeholder="min. 6 znaków"></label>`));
+      form.appendChild(el(`<label class="fld">Chcę założyć konto jako
+        <select id="role"><option value="student">Uczeń</option><option value="teacher">Nauczyciel</option></select></label>`));
+      const note = el(`<p class="muted tiny">Pierwsze konto w systemie automatycznie otrzyma uprawnienia administratora. Kolejne konta czekają na akceptację administratora.</p>`);
+      const btn = el(`<button class="btn" style="margin-top:4px">Załóż konto</button>`);
+      const err = el(`<div class="msg err hide"></div>`);
+      form.append(note, btn, err);
+      btn.onclick = async ()=>{
+        const full_name=form.querySelector('#name').value.trim();
+        const email=form.querySelector('#email').value.trim();
+        const password=form.querySelector('#pass').value;
+        const role=form.querySelector('#role').value;
+        if(!full_name||!email||!password) return showErr(err,'Uzupełnij wszystkie pola.');
+        if(password.length<6) return showErr(err,'Hasło musi mieć min. 6 znaków.');
+        btn.disabled=true; btn.textContent='Zakładanie…';
+        const { data, error } = await sb.auth.signUp({email,password,options:{data:{full_name, role}}});
+        btn.disabled=false; btn.textContent='Załóż konto';
+        if(error) return showErr(err, translateAuthError(error.message));
+        if(!data.session){
+          err.className='msg info'; err.classList.remove('hide');
+          err.textContent='Konto utworzone. Jeśli włączone jest potwierdzanie e-mail, sprawdź skrzynkę, a potem zaloguj się.';
+        }
+      };
+    }
+  };
+  draw();
+  root.appendChild(wrap);
+}
+function showErr(node,msg){ node.className='msg err'; node.textContent=msg; }
+function translateAuthError(m){
+  if(/Invalid login/i.test(m)) return 'Nieprawidłowy e-mail lub hasło.';
+  if(/already registered/i.test(m)) return 'Konto z tym e-mailem już istnieje.';
+  if(/rate limit|too many/i.test(m)) return 'Zbyt wiele prób. Spróbuj za chwilę.';
+  return m;
+}
+
+/* ============================================================
+   PENDING
+   ============================================================ */
+function renderPending(){
+  root.innerHTML='';
+  const rejected = profile.status==='rejected';
+  root.appendChild(el(`
+    <div class="center"><div class="card auth" style="text-align:center">
+      ${brand(20)}
+      <h1>${rejected?'Konto odrzucone':'Konto oczekuje na akceptację'}</h1>
+      <p class="sub">${rejected
+        ? 'Twoje konto nie zostało zaakceptowane. Skontaktuj się z administratorem.'
+        : 'Administrator musi zatwierdzić Twoje konto, zanim uzyskasz dostęp do dziennika.'}</p>
+      <div class="who" style="justify-content:center; margin-bottom:18px">
+        <span class="avatar">${initials(profile.full_name)}</span>
+        <span>${esc(profile.full_name)} · <span class="rolechip">${roleLabel(profile.role)}</span></span>
+      </div>
+      <button class="btn ghost" id="out">Wyloguj się</button>
+    </div></div>`));
+  root.querySelector('#out').onclick = ()=> sb.auth.signOut();
+}
+function roleLabel(r){ return {admin:'Administrator', teacher:'Nauczyciel', student:'Uczeń'}[r] || r; }
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+function tabsFor(role){
+  if(role==='admin') return [
+    ['announcements','Ogłoszenia'], ['grades','Oceny'], ['schedule','Plan lekcji'],
+    ['subjects','Przedmioty'], ['accounts','Konta'],
+  ];
+  if(role==='teacher') return [
+    ['announcements','Ogłoszenia'], ['grades','Oceny'], ['schedule','Plan lekcji'], ['subjects','Przedmioty'],
+  ];
+  return [ ['announcements','Ogłoszenia'], ['mygrades','Moje oceny'], ['myschedule','Mój plan'] ];
+}
+
+function renderApp(){
+  const tabs = tabsFor(profile.role);
+  if(!currentTab || !tabs.find(t=>t[0]===currentTab)) currentTab = tabs[0][0];
+  root.innerHTML='';
+  root.appendChild(el(`
+    <header class="top">
+      ${brand(18)}
+      <div class="who">
+        <span class="rolechip">${roleLabel(profile.role)}</span>
+        <span class="avatar">${initials(profile.full_name)}</span>
+        <span class="muted" style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(profile.full_name)}</span>
+        <button class="btn ghost sm" id="logout">Wyloguj</button>
+      </div>
+    </header>
+    <div class="navbar"><nav class="side" id="nav"></nav></div>
+    <main class="shell" id="view"></main>`));
+  const nav = root.querySelector('#nav');
+  tabs.forEach(([k,label])=>{
+    const b = el(`<button class="${k===currentTab?'active':''}">${label}</button>`);
+    b.onclick=()=>{ currentTab=k; renderApp(); };
+    nav.appendChild(b);
+  });
+  root.querySelector('#logout').onclick=()=>sb.auth.signOut();
+  renderTab(currentTab);
+}
+
+function view(){ return root.querySelector('#view'); }
+function loading(){ view().innerHTML = `<div class="list-empty">Wczytywanie…</div>`; }
+
+async function renderTab(tab){
+  loading();
+  try{
+    if(tab==='announcements') return await tabAnnouncements();
+    if(tab==='accounts')      return await tabAccounts();
+    if(tab==='subjects')      return await tabSubjects();
+    if(tab==='grades')        return await tabGrades();
+    if(tab==='schedule')      return await tabSchedule();
+    if(tab==='mygrades')      return await tabMyGrades();
+    if(tab==='myschedule')    return await tabMySchedule();
+  }catch(e){
+    console.error(e);
+    view().innerHTML = `<div class="msg err">Wystąpił błąd: ${esc(e.message||e)}</div>`;
+  }
+}
+
+/* ---------- shared data ---------- */
+async function getStudents(){
+  const { data } = await sb.from('profiles').select('id,full_name')
+    .eq('role','student').eq('status','approved').order('full_name');
+  return data||[];
+}
+async function getSubjects(){
+  const { data } = await sb.from('subjects').select('*').order('name');
+  return data||[];
+}
+
+/* ============================================================
+   OGŁOSZENIA
+   ============================================================ */
+async function tabAnnouncements(){
+  const isAdmin = profile.role==='admin';
+  const { data:list } = await sb.from('announcements')
+    .select('*, author:profiles!announcements_author_id_fkey(full_name)')
+    .order('created_at',{ascending:false});
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Tablica', 'Ogłoszenia',
+    isAdmin ? btn('+ Nowe ogłoszenie', ()=>openAnnouncementModal()) : null));
+  if(!list || !list.length){ v.appendChild(el(`<div class="panel"><div class="list-empty">Brak ogłoszeń.</div></div>`)); return; }
+  list.forEach(a=>{
+    const node = el(`<article class="ann">
+      <h4>${esc(a.title)}</h4>
+      <div class="when">${esc(a.author?.full_name || 'Administrator')} · ${fmtDT(a.created_at)}</div>
+      <div class="body">${esc(a.content)}</div>
+    </article>`);
+    if(isAdmin){
+      const bar = el(`<div class="flexbar" style="margin-top:12px"></div>`);
+      bar.append(
+        btn('Edytuj', ()=>openAnnouncementModal(a), 'ghost sm'),
+        btn('Usuń', async ()=>{ if(confirm('Usunąć ogłoszenie?')){ await sb.from('announcements').delete().eq('id',a.id); toast('Usunięto'); renderTab('announcements'); }}, 'danger sm')
+      );
+      node.appendChild(bar);
+    }
+    v.appendChild(node);
+  });
+}
+function openAnnouncementModal(a){
+  modal(a?'Edytuj ogłoszenie':'Nowe ogłoszenie', `
+    <label class="fld">Tytuł<input id="a-title" value="${esc(a?.title||'')}"></label>
+    <label class="fld" style="margin-top:12px">Treść<textarea id="a-body">${esc(a?.content||'')}</textarea></label>
+  `, async (m)=>{
+    const title=m.querySelector('#a-title').value.trim();
+    const content=m.querySelector('#a-body').value.trim();
+    if(!title||!content){ toast('Uzupełnij tytuł i treść','err'); return false; }
+    if(a){ await sb.from('announcements').update({title,content}).eq('id',a.id); }
+    else { await sb.from('announcements').insert({title,content,author_id:profile.id}); }
+    toast('Zapisano'); renderTab('announcements'); return true;
+  });
+}
+
+/* ============================================================
+   KONTA (admin)
+   ============================================================ */
+async function tabAccounts(){
+  const { data:all } = await sb.from('profiles').select('*').order('created_at',{ascending:false});
+  const pending = (all||[]).filter(p=>p.status==='pending');
+  const others = (all||[]).filter(p=>p.status!=='pending');
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Zarządzanie', 'Konta'));
+
+  // Pending
+  const p1 = el(`<section class="panel"><h3>Oczekujące na akceptację ${pending.length?`(${pending.length})`:''}</h3></section>`);
+  if(!pending.length){ p1.appendChild(el(`<div class="list-empty">Brak kont do zatwierdzenia.</div>`)); }
+  else{
+    const tbl = el(`<table><thead><tr><th>Imię i nazwisko</th><th>E-mail</th><th>Rola</th><th></th></tr></thead><tbody></tbody></table>`);
+    const tb = tbl.querySelector('tbody');
+    pending.forEach(p=>{
+      const tr = el(`<tr>
+        <td><b>${esc(p.full_name||'—')}</b></td>
+        <td class="muted">${esc(p.email||'')}</td>
+        <td>${roleLabel(p.role)}</td><td></td></tr>`);
+      const cell = tr.lastElementChild;
+      const bar = el(`<div class="flexbar" style="justify-content:flex-end"></div>`);
+      bar.append(
+        btn('Akceptuj', ()=>updStatus(p.id,'approved'),'ok sm'),
+        btn('Odrzuć', ()=>updStatus(p.id,'rejected'),'danger sm')
+      );
+      cell.appendChild(bar);
+      tb.appendChild(tr);
+    });
+    p1.appendChild(tbl);
+  }
+  v.appendChild(p1);
+
+  // All users
+  const p2 = el(`<section class="panel"><h3>Wszyscy użytkownicy</h3></section>`);
+  const tbl2 = el(`<table><thead><tr><th>Imię i nazwisko</th><th>E-mail</th><th>Rola</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>`);
+  const tb2 = tbl2.querySelector('tbody');
+  others.forEach(p=>{
+    const isSelf = p.id===profile.id;
+    const tr = el(`<tr>
+      <td><b>${esc(p.full_name||'—')}</b>${isSelf?' <span class="tiny muted">(Ty)</span>':''}</td>
+      <td class="muted">${esc(p.email||'')}</td>
+      <td></td>
+      <td><span class="badge b-${p.status}">${statusLabel(p.status)}</span></td>
+      <td></td></tr>`);
+    // role select
+    const roleCell = tr.children[2];
+    if(isSelf){ roleCell.textContent = roleLabel(p.role); }
+    else{
+      const sel = el(`<select style="padding:6px 8px; font-size:13px">
+        <option value="student">Uczeń</option>
+        <option value="teacher">Nauczyciel</option>
+        <option value="admin">Administrator</option></select>`);
+      sel.value=p.role;
+      sel.onchange=async()=>{ await sb.from('profiles').update({role:sel.value}).eq('id',p.id); toast('Zmieniono rolę'); };
+      roleCell.appendChild(sel);
+    }
+    // actions
+    const act = tr.lastElementChild;
+    if(!isSelf){
+      const bar = el(`<div class="flexbar" style="justify-content:flex-end"></div>`);
+      if(p.status!=='approved') bar.append(btn('Aktywuj', ()=>updStatus(p.id,'approved'),'ok sm'));
+      if(p.status==='approved') bar.append(btn('Zablokuj', ()=>updStatus(p.id,'rejected'),'danger sm'));
+      act.appendChild(bar);
+    }
+    tb2.appendChild(tr);
+  });
+  p2.appendChild(tbl2);
+  v.appendChild(p2);
+}
+function statusLabel(s){ return {pending:'Oczekuje', approved:'Aktywne', rejected:'Zablokowane'}[s]||s; }
+async function updStatus(id, status){
+  await sb.from('profiles').update({status}).eq('id',id);
+  toast(status==='approved'?'Zaakceptowano':'Zaktualizowano');
+  renderTab('accounts');
+}
+
+/* ============================================================
+   PRZEDMIOTY
+   ============================================================ */
+async function tabSubjects(){
+  const subs = await getSubjects();
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Konfiguracja', 'Przedmioty'));
+  const panel = el(`<section class="panel"><h3>Dodaj przedmiot</h3></section>`);
+  const form = el(`<div class="row" style="align-items:flex-end">
+      <label class="fld" style="flex:3">Nazwa przedmiotu<input id="s-name" placeholder="np. Matematyka"></label>
+    </div>`);
+  const add = btn('Dodaj', async ()=>{
+    const name=form.querySelector('#s-name').value.trim();
+    if(!name) return toast('Podaj nazwę','err');
+    await sb.from('subjects').insert({name}); toast('Dodano'); renderTab('subjects');
+  });
+  add.style.flex='0 0 auto';
+  form.appendChild(add);
+  panel.appendChild(form);
+  v.appendChild(panel);
+
+  const list = el(`<section class="panel"><h3>Lista przedmiotów</h3></section>`);
+  if(!subs.length){ list.appendChild(el(`<div class="list-empty">Nie dodano jeszcze żadnego przedmiotu.</div>`)); }
+  else{
+    const tbl = el(`<table><tbody></tbody></table>`);
+    const tb = tbl.querySelector('tbody');
+    subs.forEach(s=>{
+      const tr = el(`<tr><td><b>${esc(s.name)}</b></td><td style="text-align:right"></td></tr>`);
+      tr.lastElementChild.appendChild(btn('Usuń', async ()=>{
+        if(confirm(`Usunąć przedmiot "${s.name}"? Usunie to też powiązane oceny i lekcje.`)){
+          await sb.from('subjects').delete().eq('id',s.id); toast('Usunięto'); renderTab('subjects');
+        }
+      },'danger sm'));
+      tb.appendChild(tr);
+    });
+    list.appendChild(tbl);
+  }
+  v.appendChild(list);
+}
+
+/* ============================================================
+   OCENY (admin / nauczyciel)
+   ============================================================ */
+async function tabGrades(){
+  const [students, subs] = await Promise.all([getStudents(), getSubjects()]);
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Dziennik', 'Oceny'));
+
+  if(!students.length || !subs.length){
+    v.appendChild(el(`<div class="panel"><div class="list-empty">
+      ${!students.length?'Brak zatwierdzonych uczniów. ':''}${!subs.length?'Brak przedmiotów — dodaj je w zakładce Przedmioty.':''}
+    </div></div>`));
+    return;
+  }
+
+  const picker = el(`<section class="panel">
+    <div class="row" style="align-items:flex-end">
+      <label class="fld">Uczeń<select id="g-student"></select></label>
+      <button class="btn ghost" id="g-add" style="flex:0 0 auto">+ Wystaw ocenę</button>
+    </div>
+  </section>`);
+  const sSel = picker.querySelector('#g-student');
+  students.forEach(s=> sSel.appendChild(el(`<option value="${s.id}">${esc(s.full_name)}</option>`)));
+  v.appendChild(picker);
+
+  const holder = el(`<div id="g-holder"></div>`);
+  v.appendChild(holder);
+
+  const load = async ()=>{
+    const studentId = sSel.value;
+    holder.innerHTML = `<div class="list-empty">Wczytywanie…</div>`;
+    const { data:grades } = await sb.from('grades')
+      .select('*, teacher:profiles!grades_teacher_id_fkey(full_name)')
+      .eq('student_id', studentId).order('graded_on',{ascending:false});
+    renderGradeBook(holder, subs, grades||[], {editable:true, studentId, students});
+  };
+  sSel.onchange = load;
+  picker.querySelector('#g-add').onclick = ()=> openGradeModal({studentId:sSel.value, students, subs, onSave:load});
+  await load();
+}
+
+function renderGradeBook(holder, subs, grades, opt){
+  holder.innerHTML='';
+  const bySubject = {};
+  subs.forEach(s=> bySubject[s.id]=[]);
+  grades.forEach(g=>{ (bySubject[g.subject_id] ||= []).push(g); });
+
+  const used = subs.filter(s=> (bySubject[s.id]||[]).length);
+  if(!used.length){
+    holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak ocen dla tego ucznia.</div></div>`));
+    return;
+  }
+
+  used.forEach(s=>{
+    const gs = bySubject[s.id];
+    const avg = weightedAvg(gs);
+    const panel = el(`<section class="panel"></section>`);
+    panel.appendChild(el(`<div class="subject-head">
+      <h4>${esc(s.name)}</h4>
+      <span class="avg">Średnia ważona: <b>${avg!=null?avg.toFixed(2):'—'}</b></span>
+    </div>`));
+
+    ['regular','predicted','final'].forEach(cat=>{
+      const items = gs.filter(g=>g.category===cat);
+      if(!items.length) return;
+      const line = el(`<div class="cat-line"><span class="lab">${CAT_LABEL[cat]}</span><span class="chips"></span></div>`);
+      const chips = line.querySelector('.chips');
+      items.forEach(g=>{
+        const chip = el(`<span class="g ${gradeClass(g.value)} ${cat==='predicted'?'g-pred':''}"
+          title="${esc(g.description||'')}${g.weight&&cat==='regular'?` · waga ${g.weight}`:''} · ${fmtDate(g.graded_on)}${g.teacher?.full_name?` · ${esc(g.teacher.full_name)}`:''}"
+          style="cursor:${opt.editable?'pointer':'default'}">${esc(g.value)}</span>`);
+        if(opt.editable){
+          chip.onclick=()=> openGradeModal({grade:g, studentId:opt.studentId, students:opt.students, subs, onSave:()=>refreshGrades(holder,subs,opt)});
+        }
+        chips.appendChild(chip);
+      });
+      panel.appendChild(line);
+    });
+    holder.appendChild(panel);
+  });
+}
+async function refreshGrades(holder, subs, opt){
+  const { data:grades } = await sb.from('grades')
+    .select('*, teacher:profiles!grades_teacher_id_fkey(full_name)')
+    .eq('student_id', opt.studentId).order('graded_on',{ascending:false});
+  renderGradeBook(holder, subs, grades||[], opt);
+}
+
+function openGradeModal({grade, studentId, students, subs, onSave}){
+  const editing = !!grade;
+  const opts = arr => arr.map(x=>`<option value="${x.id}">${esc(x.full_name||x.name)}</option>`).join('');
+  modal(editing?'Edytuj ocenę':'Wystaw ocenę', `
+    <div class="stack">
+      <label class="fld">Uczeń<select id="gm-student" ${editing?'disabled':''}>${opts(students)}</select></label>
+      <label class="fld">Przedmiot<select id="gm-subject">${opts(subs)}</select></label>
+      <div class="row">
+        <label class="fld">Ocena<input id="gm-value" placeholder="np. 5, 4+, 3-" value="${esc(grade?.value||'')}"></label>
+        <label class="fld">Rodzaj<select id="gm-cat">
+          <option value="regular">Cząstkowa</option>
+          <option value="predicted">Przewidywana</option>
+          <option value="final">Końcowa</option>
+        </select></label>
+      </div>
+      <div class="row">
+        <label class="fld">Waga<input id="gm-weight" type="number" min="1" max="10" value="${grade?.weight||1}"></label>
+        <label class="fld">Data<input id="gm-date" type="date" value="${grade?.graded_on || new Date().toISOString().slice(0,10)}"></label>
+      </div>
+      <label class="fld">Opis (opcjonalnie)<input id="gm-desc" placeholder="np. Sprawdzian – ułamki" value="${esc(grade?.description||'')}"></label>
+    </div>
+  `, async (m)=>{
+    const payload = {
+      student_id: editing? grade.student_id : (m.querySelector('#gm-student').value),
+      subject_id: m.querySelector('#gm-subject').value,
+      value: m.querySelector('#gm-value').value.trim(),
+      category: m.querySelector('#gm-cat').value,
+      weight: parseInt(m.querySelector('#gm-weight').value)||1,
+      graded_on: m.querySelector('#gm-date').value,
+      description: m.querySelector('#gm-desc').value.trim() || null,
+      teacher_id: profile.id,
+    };
+    if(!payload.value){ toast('Podaj ocenę','err'); return false; }
+    if(editing){ await sb.from('grades').update(payload).eq('id',grade.id); }
+    else { await sb.from('grades').insert(payload); }
+    toast('Zapisano');
+    onSave && onSave();
+    return true;
+  }, editing ? async (m)=>{ // delete button
+    if(confirm('Usunąć tę ocenę?')){ await sb.from('grades').delete().eq('id',grade.id); toast('Usunięto'); onSave&&onSave(); closeModal(); }
+  } : null);
+
+  // preselect
+  if(!editing) document.querySelector('#gm-student').value = studentId;
+  else { document.querySelector('#gm-student').value = grade.student_id; }
+  document.querySelector('#gm-subject').value = grade?.subject_id || subs[0]?.id;
+  document.querySelector('#gm-cat').value = grade?.category || 'regular';
+}
+
+/* ============================================================
+   PLAN LEKCJI (admin / nauczyciel)
+   ============================================================ */
+async function tabSchedule(){
+  const [students, subs] = await Promise.all([getStudents(), getSubjects()]);
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Nauczanie indywidualne', 'Plan lekcji'));
+
+  if(!students.length || !subs.length){
+    v.appendChild(el(`<div class="panel"><div class="list-empty">
+      ${!students.length?'Brak zatwierdzonych uczniów. ':''}${!subs.length?'Dodaj najpierw przedmioty.':''}
+    </div></div>`));
+    return;
+  }
+  const picker = el(`<section class="panel">
+    <div class="row" style="align-items:flex-end">
+      <label class="fld">Uczeń<select id="sc-student"></select></label>
+      <button class="btn ghost" id="sc-add" style="flex:0 0 auto">+ Dodaj lekcję</button>
+    </div>
+  </section>`);
+  const sSel = picker.querySelector('#sc-student');
+  students.forEach(s=> sSel.appendChild(el(`<option value="${s.id}">${esc(s.full_name)}</option>`)));
+  v.appendChild(picker);
+  const holder = el(`<div id="sc-holder"></div>`);
+  v.appendChild(holder);
+
+  const load = async ()=>{
+    holder.innerHTML=`<div class="list-empty">Wczytywanie…</div>`;
+    const { data } = await sb.from('lessons')
+      .select('*, subject:subjects(name), teacher:profiles!lessons_teacher_id_fkey(full_name)')
+      .eq('student_id', sSel.value).order('day_of_week').order('start_time');
+    renderSchedule(holder, data||[], {editable:true, students, subs, studentId:sSel.value, reload:load});
+  };
+  sSel.onchange=load;
+  picker.querySelector('#sc-add').onclick=()=> openLessonModal({studentId:sSel.value, students, subs, onSave:load});
+  await load();
+}
+
+function renderSchedule(holder, lessons, opt){
+  holder.innerHTML='';
+  if(!lessons.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak zaplanowanych lekcji.</div></div>`)); return; }
+  const byDay={};
+  lessons.forEach(l=> (byDay[l.day_of_week] ||= []).push(l));
+  const panel = el(`<section class="panel"></section>`);
+  for(let d=1; d<=7; d++){
+    if(!byDay[d]) continue;
+    const block = el(`<div class="day-block"><div class="dh">${DAYS[d]}</div></div>`);
+    byDay[d].forEach(l=>{
+      const lesson = el(`<div class="lesson">
+        <span class="time">${t2(l.start_time)}–${t2(l.end_time)}</span>
+        <span class="subj">${esc(l.subject?.name||'—')}</span>
+        <span class="spacer"></span>
+      </div>`);
+      if(l.meeting_url){
+        lesson.appendChild(el(`<a class="link-a" href="${esc(l.meeting_url)}" target="_blank" rel="noopener">Dołącz online ↗</a>`));
+      }
+      if(l.teacher?.full_name){
+        lesson.insertBefore(el(`<span class="meta">${esc(l.teacher.full_name)}</span>`), lesson.querySelector('.spacer'));
+      }
+      if(opt.editable){
+        const edit = btn('Edytuj', ()=> openLessonModal({lesson:l, studentId:opt.studentId, students:opt.students, subs:opt.subs, onSave:opt.reload}), 'ghost sm');
+        edit.style.marginLeft='10px';
+        lesson.appendChild(edit);
+      }
+      block.appendChild(lesson);
+    });
+    panel.appendChild(block);
+  }
+  holder.appendChild(panel);
+}
+
+function openLessonModal({lesson, studentId, students, subs, onSave}){
+  const editing=!!lesson;
+  const opts = arr => arr.map(x=>`<option value="${x.id}">${esc(x.full_name||x.name)}</option>`).join('');
+  const dayOpts = DAYS.map((d,i)=> i? `<option value="${i}">${d}</option>`:'').join('');
+  modal(editing?'Edytuj lekcję':'Dodaj lekcję', `
+    <div class="stack">
+      <label class="fld">Uczeń<select id="lm-student" ${editing?'disabled':''}>${opts(students)}</select></label>
+      <label class="fld">Przedmiot<select id="lm-subject">${opts(subs)}</select></label>
+      <label class="fld">Dzień tygodnia<select id="lm-day">${dayOpts}</select></label>
+      <div class="row">
+        <label class="fld">Od godziny<input id="lm-start" type="time" value="${t2(lesson?.start_time)||'08:00'}"></label>
+        <label class="fld">Do godziny<input id="lm-end" type="time" value="${t2(lesson?.end_time)||'08:45'}"></label>
+      </div>
+      <label class="fld">Link do spotkania online (opcjonalnie)<input id="lm-url" placeholder="https://meet…" value="${esc(lesson?.meeting_url||'')}"></label>
+    </div>
+  `, async (m)=>{
+    const start=m.querySelector('#lm-start').value, end=m.querySelector('#lm-end').value;
+    if(!start||!end){ toast('Podaj godziny','err'); return false; }
+    if(end<=start){ toast('Godzina końca musi być późniejsza','err'); return false; }
+    const payload={
+      student_id: editing? lesson.student_id : m.querySelector('#lm-student').value,
+      subject_id: m.querySelector('#lm-subject').value,
+      day_of_week: parseInt(m.querySelector('#lm-day').value),
+      start_time: start, end_time: end,
+      meeting_url: m.querySelector('#lm-url').value.trim() || null,
+      teacher_id: profile.id,
+    };
+    if(editing){ await sb.from('lessons').update(payload).eq('id',lesson.id); }
+    else { await sb.from('lessons').insert(payload); }
+    toast('Zapisano'); onSave&&onSave(); return true;
+  }, editing? async ()=>{
+    if(confirm('Usunąć lekcję z planu?')){ await sb.from('lessons').delete().eq('id',lesson.id); toast('Usunięto'); onSave&&onSave(); closeModal(); }
+  } : null);
+
+  if(!editing) document.querySelector('#lm-student').value=studentId;
+  else document.querySelector('#lm-student').value=lesson.student_id;
+  document.querySelector('#lm-subject').value = lesson?.subject_id || subs[0]?.id;
+  document.querySelector('#lm-day').value = lesson?.day_of_week || 1;
+}
+
+/* ============================================================
+   WIDOK UCZNIA — MOJE OCENY
+   ============================================================ */
+async function tabMyGrades(){
+  const [subs, gRes] = await Promise.all([
+    getSubjects(),
+    sb.from('grades').select('*, teacher:profiles!grades_teacher_id_fkey(full_name)')
+      .eq('student_id', profile.id).order('graded_on',{ascending:false})
+  ]);
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Twój dziennik', 'Moje oceny'));
+  const holder = el(`<div></div>`); v.appendChild(holder);
+  renderGradeBook(holder, subs, gRes.data||[], {editable:false});
+}
+
+/* ============================================================
+   WIDOK UCZNIA — MÓJ PLAN
+   ============================================================ */
+async function tabMySchedule(){
+  const { data } = await sb.from('lessons')
+    .select('*, subject:subjects(name), teacher:profiles!lessons_teacher_id_fkey(full_name)')
+    .eq('student_id', profile.id).order('day_of_week').order('start_time');
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Nauczanie indywidualne', 'Mój plan lekcji'));
+  const holder = el(`<div></div>`); v.appendChild(holder);
+  renderSchedule(holder, data||[], {editable:false});
+}
+
+/* ============================================================
+   UI HELPERS
+   ============================================================ */
+function pageHead(eyebrow, title, actionNode){
+  const head = el(`<div class="page-head"><div>
+    <div class="eyebrow">${esc(eyebrow)}</div><h2>${esc(title)}</h2>
+  </div></div>`);
+  if(actionNode) head.appendChild(actionNode);
+  return head;
+}
+function btn(label, onClick, cls='btn'){
+  const b = el(`<button class="${cls.startsWith('btn')?cls:'btn '+cls}">${esc(label)}</button>`);
+  b.onclick=onClick; return b;
+}
+let _modalEl=null;
+function modal(title, innerHTML, onSave, onDelete){
+  closeModal();
+  const overlay = el(`<div class="overlay"><div class="modal">
+    <h3>${esc(title)}</h3>
+    <div class="mbody">${innerHTML}</div>
+    <div class="actions"></div>
+  </div></div>`);
+  const actions = overlay.querySelector('.actions');
+  if(onDelete){ const d=btn('Usuń', ()=>onDelete(overlay.querySelector('.mbody')),'danger'); d.style.marginRight='auto'; actions.appendChild(d); }
+  actions.appendChild(btn('Anuluj', closeModal,'ghost'));
+  const save = btn('Zapisz', async ()=>{
+    save.disabled=true;
+    const ok = await onSave(overlay.querySelector('.mbody'));
+    save.disabled=false;
+    if(ok!==false) closeModal();
+  });
+  actions.appendChild(save);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+  document.body.appendChild(overlay);
+  _modalEl=overlay;
+}
+function closeModal(){ if(_modalEl){ _modalEl.remove(); _modalEl=null; } }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+</script>
+</body>
+</html>
