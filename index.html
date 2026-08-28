@@ -411,8 +411,7 @@ function tabsFor(role){
 function renderApp(){
   const tabs = tabsFor(profile.role);
   if(!currentTab || !tabs.find(t=>t[0]===currentTab)) currentTab = tabs[0][0];
-  root.innerHTML='';
-  root.appendChild(el(`
+  root.innerHTML = `
     <header class="top">
       ${brand(18)}
       <div class="who">
@@ -423,7 +422,7 @@ function renderApp(){
       </div>
     </header>
     <div class="navbar"><nav class="side" id="nav"></nav></div>
-    <main class="shell" id="view"></main>`));
+    <main class="shell" id="view"></main>`;
   const nav = root.querySelector('#nav');
   tabs.forEach(([k,label])=>{
     const b = el(`<button class="${k===currentTab?'active':''}">${label}</button>`);
