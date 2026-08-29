@@ -400,12 +400,17 @@ function roleLabel(r){ return {admin:'Administrator', teacher:'Nauczyciel', stud
 function tabsFor(role){
   if(role==='admin') return [
     ['announcements','Ogłoszenia'], ['grades','Oceny'], ['schedule','Plan lekcji'],
-    ['subjects','Przedmioty'], ['accounts','Konta'],
+    ['homework','Zadania domowe'], ['tests','Sprawdziany'], ['notes','Notatki'],
+    ['subjects','Przedmioty'], ['assignments','Przypisania'], ['accounts','Konta'],
   ];
   if(role==='teacher') return [
-    ['announcements','Ogłoszenia'], ['grades','Oceny'], ['schedule','Plan lekcji'], ['subjects','Przedmioty'],
+    ['announcements','Ogłoszenia'], ['grades','Oceny'], ['schedule','Plan lekcji'],
+    ['homework','Zadania domowe'], ['tests','Sprawdziany'], ['notes','Notatki'], ['subjects','Przedmioty'],
   ];
-  return [ ['announcements','Ogłoszenia'], ['mygrades','Moje oceny'], ['myschedule','Mój plan'] ];
+  return [
+    ['announcements','Ogłoszenia'], ['mygrades','Moje oceny'], ['myschedule','Mój plan'],
+    ['homework','Zadania domowe'], ['tests','Sprawdziany'], ['notes','Notatki'],
+  ];
 }
 
 function renderApp(){
@@ -446,6 +451,10 @@ async function renderTab(tab){
     if(tab==='schedule')      return await tabSchedule();
     if(tab==='mygrades')      return await tabMyGrades();
     if(tab==='myschedule')    return await tabMySchedule();
+    if(tab==='assignments')   return await tabAssignments();
+    if(tab==='homework')      return await tabHomework();
+    if(tab==='tests')         return await tabTests();
+    if(tab==='notes')         return await tabNotes();
   }catch(e){
     console.error(e);
     view().innerHTML = `<div class="msg err">Wystąpił błąd: ${esc(e.message||e)}</div>`;
@@ -461,6 +470,67 @@ async function getStudents(){
 async function getSubjects(){
   const { data } = await sb.from('subjects').select('*').order('name');
   return data||[];
+}
+async function getTeachers(){
+  const { data } = await sb.from('profiles').select('id,full_name')
+    .eq('role','teacher').eq('status','approved').order('full_name');
+  return data||[];
+}
+
+/* Kontekst przypisań — na kogo i jakie przedmioty może działać
+   bieżący użytkownik. Admin: wszyscy uczniowie + wszystkie przedmioty.
+   Nauczyciel: tylko przypisani uczniowie i przypisane im przedmioty. */
+async function loadScope(){
+  const allSubjects = await getSubjects();
+  if(profile.role==='admin'){
+    const students = await getStudents();
+    const byStudent = {};
+    students.forEach(s=> byStudent[s.id]=allSubjects);
+    return { students, subjectsFor:id=>byStudent[id]||allSubjects, allSubjects };
+  }
+  const { data } = await sb.from('teaching_assignments')
+    .select('student_id,subject_id, student:profiles!teaching_assignments_student_id_fkey(id,full_name), subject:subjects(id,name)')
+    .eq('teacher_id', profile.id);
+  const studentsMap={}, byStudent={};
+  (data||[]).forEach(a=>{
+    if(a.student) studentsMap[a.student.id]=a.student;
+    (byStudent[a.student_id] ||= []);
+    if(a.subject && !byStudent[a.student_id].some(x=>x.id===a.subject.id)) byStudent[a.student_id].push(a.subject);
+  });
+  Object.values(byStudent).forEach(arr=>arr.sort((x,y)=>x.name.localeCompare(y.name,'pl')));
+  const students = Object.values(studentsMap).sort((x,y)=>x.full_name.localeCompare(y.full_name,'pl'));
+  return { students, subjectsFor:id=>byStudent[id]||[], allSubjects };
+}
+
+/* ---------- pliki (Supabase Storage) ---------- */
+const BUCKET='dziennik';
+function uuid(){ return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id'+Date.now()+Math.random().toString(16).slice(2)); }
+function sanitizeName(n){ return String(n||'plik').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,80); }
+async function uploadFile(file, folder){
+  const clean = sanitizeName(file.name);
+  const path = `${folder}/${uuid()}__${clean}`;
+  const { error } = await sb.storage.from(BUCKET).upload(path, file, { upsert:false });
+  if(error) throw error;
+  return { path, name:file.name };
+}
+async function openFile(path){
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, 3600);
+  if(error){ toast('Nie udało się otworzyć pliku','err'); return; }
+  window.open(data.signedUrl, '_blank', 'noopener');
+}
+function fileChip(path, name, onDelete){
+  const label = name || (path? path.split('__').slice(1).join('__') : 'plik');
+  const wrap = el(`<span class="flexbar" style="gap:6px"></span>`);
+  const a = btn('📎 '+label, ()=>openFile(path), 'ghost sm');
+  wrap.appendChild(a);
+  if(onDelete) wrap.appendChild(btn('✕', onDelete, 'danger sm'));
+  return wrap;
+}
+/* Pole wyboru pliku zwracające File przez getter */
+function filePicker(labelText){
+  const wrap = el(`<label class="fld">${esc(labelText)}<input type="file" class="fp"></label>`);
+  wrap._file = ()=> wrap.querySelector('.fp').files[0] || null;
+  return wrap;
 }
 
 /* ============================================================
@@ -628,14 +698,13 @@ async function tabSubjects(){
    OCENY (admin / nauczyciel)
    ============================================================ */
 async function tabGrades(){
-  const [students, subs] = await Promise.all([getStudents(), getSubjects()]);
+  const scope = await loadScope();
+  const students = scope.students;
   const v = view(); v.innerHTML='';
   v.appendChild(pageHead('Dziennik', 'Oceny'));
 
-  if(!students.length || !subs.length){
-    v.appendChild(el(`<div class="panel"><div class="list-empty">
-      ${!students.length?'Brak zatwierdzonych uczniów. ':''}${!subs.length?'Brak przedmiotów — dodaj je w zakładce Przedmioty.':''}
-    </div></div>`));
+  if(!students.length){
+    v.appendChild(scopeEmpty());
     return;
   }
 
@@ -658,11 +727,22 @@ async function tabGrades(){
     const { data:grades } = await sb.from('grades')
       .select('*, teacher:profiles!grades_teacher_id_fkey(full_name)')
       .eq('student_id', studentId).order('graded_on',{ascending:false});
-    renderGradeBook(holder, subs, grades||[], {editable:true, studentId, students});
+    renderGradeBook(holder, scope.allSubjects, grades||[],
+      {editable:true, studentId, students, addSubs:scope.subjectsFor(studentId), reload:load});
   };
   sSel.onchange = load;
-  picker.querySelector('#g-add').onclick = ()=> openGradeModal({studentId:sSel.value, students, subs, onSave:load});
+  picker.querySelector('#g-add').onclick = ()=>{
+    const subs = scope.subjectsFor(sSel.value);
+    if(!subs.length) return toast('Brak przypisanych przedmiotów dla tego ucznia','err');
+    openGradeModal({studentId:sSel.value, students, subs, onSave:load});
+  };
   await load();
+}
+function scopeEmpty(){
+  const msg = profile.role==='admin'
+    ? 'Brak zatwierdzonych uczniów. Zaakceptuj konta w zakładce Konta.'
+    : 'Nie masz jeszcze przypisanych uczniów. Poproś administratora o przypisanie Ci przedmiotu u ucznia (zakładka Przypisania).';
+  return el(`<div class="panel"><div class="list-empty">${msg}</div></div>`);
 }
 
 function renderGradeBook(holder, subs, grades, opt){
@@ -696,7 +776,7 @@ function renderGradeBook(holder, subs, grades, opt){
           title="${esc(g.description||'')}${g.weight&&cat==='regular'?` · waga ${g.weight}`:''} · ${fmtDate(g.graded_on)}${g.teacher?.full_name?` · ${esc(g.teacher.full_name)}`:''}"
           style="cursor:${opt.editable?'pointer':'default'}">${esc(g.value)}</span>`);
         if(opt.editable){
-          chip.onclick=()=> openGradeModal({grade:g, studentId:opt.studentId, students:opt.students, subs, onSave:()=>refreshGrades(holder,subs,opt)});
+          chip.onclick=()=> openGradeModal({grade:g, studentId:opt.studentId, students:opt.students, subs:opt.addSubs||subs, onSave:opt.reload});
         }
         chips.appendChild(chip);
       });
@@ -704,12 +784,6 @@ function renderGradeBook(holder, subs, grades, opt){
     });
     holder.appendChild(panel);
   });
-}
-async function refreshGrades(holder, subs, opt){
-  const { data:grades } = await sb.from('grades')
-    .select('*, teacher:profiles!grades_teacher_id_fkey(full_name)')
-    .eq('student_id', opt.studentId).order('graded_on',{ascending:false});
-  renderGradeBook(holder, subs, grades||[], opt);
 }
 
 function openGradeModal({grade, studentId, students, subs, onSave}){
@@ -765,16 +839,13 @@ function openGradeModal({grade, studentId, students, subs, onSave}){
    PLAN LEKCJI (admin / nauczyciel)
    ============================================================ */
 async function tabSchedule(){
-  const [students, subs] = await Promise.all([getStudents(), getSubjects()]);
+  const scope = await loadScope();
+  const students = scope.students;
   const v = view(); v.innerHTML='';
   v.appendChild(pageHead('Nauczanie indywidualne', 'Plan lekcji'));
 
-  if(!students.length || !subs.length){
-    v.appendChild(el(`<div class="panel"><div class="list-empty">
-      ${!students.length?'Brak zatwierdzonych uczniów. ':''}${!subs.length?'Dodaj najpierw przedmioty.':''}
-    </div></div>`));
-    return;
-  }
+  if(!students.length){ v.appendChild(scopeEmpty()); return; }
+
   const picker = el(`<section class="panel">
     <div class="row" style="align-items:flex-end">
       <label class="fld">Uczeń<select id="sc-student"></select></label>
@@ -792,10 +863,15 @@ async function tabSchedule(){
     const { data } = await sb.from('lessons')
       .select('*, subject:subjects(name), teacher:profiles!lessons_teacher_id_fkey(full_name)')
       .eq('student_id', sSel.value).order('day_of_week').order('start_time');
-    renderSchedule(holder, data||[], {editable:true, students, subs, studentId:sSel.value, reload:load});
+    renderSchedule(holder, data||[],
+      {editable:true, students, subs:scope.subjectsFor(sSel.value), studentId:sSel.value, reload:load});
   };
   sSel.onchange=load;
-  picker.querySelector('#sc-add').onclick=()=> openLessonModal({studentId:sSel.value, students, subs, onSave:load});
+  picker.querySelector('#sc-add').onclick=()=>{
+    const subs = scope.subjectsFor(sSel.value);
+    if(!subs.length) return toast('Brak przypisanych przedmiotów dla tego ucznia','err');
+    openLessonModal({studentId:sSel.value, students, subs, onSave:load});
+  };
   await load();
 }
 
@@ -898,6 +974,364 @@ async function tabMySchedule(){
   v.appendChild(pageHead('Nauczanie indywidualne', 'Mój plan lekcji'));
   const holder = el(`<div></div>`); v.appendChild(holder);
   renderSchedule(holder, data||[], {editable:false});
+}
+
+/* ============================================================
+   PRZYPISANIA (admin)
+   ============================================================ */
+async function tabAssignments(){
+  const [teachers, students, subs] = await Promise.all([getTeachers(), getStudents(), getSubjects()]);
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Konfiguracja', 'Przypisania nauczycieli'));
+  const opt = arr => arr.map(x=>`<option value="${x.id}">${esc(x.full_name||x.name)}</option>`).join('');
+
+  if(teachers.length && students.length && subs.length){
+    const form = el(`<section class="panel"><h3>Nowe przypisanie</h3>
+      <div class="row" style="align-items:flex-end">
+        <label class="fld">Nauczyciel<select id="ta-teacher">${opt(teachers)}</select></label>
+        <label class="fld">Przedmiot<select id="ta-subject">${opt(subs)}</select></label>
+        <label class="fld">Uczeń<select id="ta-student">${opt(students)}</select></label>
+        <button class="btn" id="ta-add" style="flex:0 0 auto">Przypisz</button>
+      </div>
+      <p class="tiny muted" style="margin:12px 0 0">Nauczyciel zobaczy w swoich zakładkach tylko tych uczniów i te przedmioty, które mu tu przypiszesz.</p>
+    </section>`);
+    form.querySelector('#ta-add').onclick = async ()=>{
+      const payload = {
+        teacher_id: form.querySelector('#ta-teacher').value,
+        subject_id: form.querySelector('#ta-subject').value,
+        student_id: form.querySelector('#ta-student').value,
+      };
+      const { error } = await sb.from('teaching_assignments').insert(payload);
+      if(error){ toast(/duplicate|already|unique/i.test(error.message)?'Takie przypisanie już istnieje':'Błąd zapisu','err'); return; }
+      toast('Przypisano'); renderTab('assignments');
+    };
+    v.appendChild(form);
+  } else {
+    v.appendChild(el(`<div class="panel"><div class="list-empty">
+      Aby tworzyć przypisania, potrzebujesz zatwierdzonych nauczycieli, uczniów oraz co najmniej jednego przedmiotu.
+    </div></div>`));
+  }
+
+  const { data:list } = await sb.from('teaching_assignments')
+    .select('id, teacher:profiles!teaching_assignments_teacher_id_fkey(full_name), subject:subjects(name), student:profiles!teaching_assignments_student_id_fkey(full_name)')
+    .order('created_at',{ascending:false});
+  const panel = el(`<section class="panel"><h3>Istniejące przypisania</h3></section>`);
+  if(!list || !list.length){ panel.appendChild(el(`<div class="list-empty">Brak przypisań.</div>`)); }
+  else{
+    const tbl = el(`<table><thead><tr><th>Nauczyciel</th><th>Przedmiot</th><th>Uczeń</th><th></th></tr></thead><tbody></tbody></table>`);
+    const tb = tbl.querySelector('tbody');
+    list.forEach(a=>{
+      const tr = el(`<tr>
+        <td><b>${esc(a.teacher?.full_name||'—')}</b></td>
+        <td>${esc(a.subject?.name||'—')}</td>
+        <td>${esc(a.student?.full_name||'—')}</td>
+        <td style="text-align:right"></td></tr>`);
+      tr.lastElementChild.appendChild(btn('Usuń', async ()=>{
+        if(confirm('Usunąć przypisanie?')){ await sb.from('teaching_assignments').delete().eq('id',a.id); toast('Usunięto'); renderTab('assignments'); }
+      },'danger sm'));
+      tb.appendChild(tr);
+    });
+    panel.appendChild(tbl);
+  }
+  v.appendChild(panel);
+}
+
+/* ============================================================
+   Wspólny szkielet zakładki nauczyciela/admina z wyborem ucznia
+   ============================================================ */
+async function teacherResourceTab({title, table, addLabel, openModal, card, selectStr}){
+  const scope = await loadScope();
+  const v = view(); v.innerHTML='';
+  v.appendChild(pageHead('Dziennik', title));
+  if(!scope.students.length){ v.appendChild(scopeEmpty()); return; }
+
+  const picker = el(`<section class="panel"><div class="row" style="align-items:flex-end">
+    <label class="fld">Uczeń<select class="rt-student"></select></label>
+    <button class="btn ghost rt-add" style="flex:0 0 auto">${esc(addLabel)}</button>
+  </div></section>`);
+  const sSel = picker.querySelector('.rt-student');
+  scope.students.forEach(s=> sSel.appendChild(el(`<option value="${s.id}">${esc(s.full_name)}</option>`)));
+  v.appendChild(picker);
+  const holder = el(`<div></div>`); v.appendChild(holder);
+
+  const load = async ()=>{
+    holder.innerHTML = `<div class="list-empty">Wczytywanie…</div>`;
+    const { data } = await sb.from(table).select(selectStr).eq('student_id', sSel.value).order('created_at',{ascending:false});
+    holder.innerHTML='';
+    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak wpisów dla tego ucznia.</div></div>`)); return; }
+    data.forEach(item=> holder.appendChild(card(item, {editable:true, reload:load, subsForEdit:scope.subjectsFor(sSel.value), students:scope.students})));
+  };
+  sSel.onchange = load;
+  picker.querySelector('.rt-add').onclick = ()=>{
+    const subs = scope.subjectsFor(sSel.value);
+    if(!subs.length) return toast('Brak przypisanych przedmiotów dla tego ucznia','err');
+    openModal({studentId:sSel.value, students:scope.students, subs, onSave:load});
+  };
+  await load();
+}
+
+/* Widok ucznia (tylko odczyt + przesyłanie prac dla zadań) */
+async function studentResourceList(kind){
+  const v = view(); v.innerHTML='';
+  const titleMap = {homework:'Zadania domowe', tests:'Sprawdziany', notes:'Notatki'};
+  v.appendChild(pageHead('Twój dziennik', titleMap[kind]));
+  const holder = el(`<div></div>`); v.appendChild(holder);
+  const reload = ()=> studentResourceList(kind);
+
+  if(kind==='homework'){
+    const { data } = await sb.from('homework')
+      .select('*, subject:subjects(name), submissions:homework_submissions(*)')
+      .eq('student_id', profile.id).order('created_at',{ascending:false});
+    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak zadań domowych.</div></div>`)); return; }
+    data.forEach(hw=> holder.appendChild(homeworkCard(hw, {editable:false, isStudent:true, reload})));
+  } else if(kind==='tests'){
+    const { data } = await sb.from('tests').select('*, subject:subjects(name)')
+      .eq('student_id', profile.id).order('created_at',{ascending:false});
+    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak sprawdzianów.</div></div>`)); return; }
+    data.forEach(tt=> holder.appendChild(testCard(tt, {editable:false})));
+  } else {
+    const { data } = await sb.from('notes').select('*, subject:subjects(name)')
+      .eq('student_id', profile.id).order('created_at',{ascending:false});
+    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak notatek.</div></div>`)); return; }
+    data.forEach(nn=> holder.appendChild(noteCard(nn, {editable:false})));
+  }
+}
+
+/* ============================================================
+   ZADANIA DOMOWE
+   ============================================================ */
+async function tabHomework(){
+  if(profile.role==='student') return studentResourceList('homework');
+  return teacherResourceTab({
+    title:'Zadania domowe', table:'homework', addLabel:'+ Zadaj pracę',
+    openModal:openHomeworkModal, card:homeworkCard,
+    selectStr:'*, subject:subjects(name), submissions:homework_submissions(*)'
+  });
+}
+function homeworkCard(hw, opt){
+  const card = el(`<section class="panel"></section>`);
+  card.appendChild(el(`<div class="subject-head">
+    <h4>${esc(hw.title)}</h4>
+    <span class="avg">${esc(hw.subject?.name||'')}${hw.due_date?` · termin: <b>${fmtDate(hw.due_date)}</b>`:''}</span>
+  </div>`));
+  if(hw.description) card.appendChild(el(`<div style="white-space:pre-wrap; margin:2px 0 10px">${esc(hw.description)}</div>`));
+  if(hw.attachment_path){
+    const r = el(`<div class="flexbar" style="margin-bottom:8px"><span class="tiny muted">Materiał od nauczyciela:</span></div>`);
+    r.appendChild(fileChip(hw.attachment_path, hw.attachment_name)); card.appendChild(r);
+  }
+  const subm = (hw.submissions||[]).slice().sort((a,b)=> new Date(b.submitted_at)-new Date(a.submitted_at));
+  const box = el(`<div style="margin-top:8px"><div class="tiny muted" style="margin-bottom:6px">Przesłane prace (${subm.length}):</div></div>`);
+  if(!subm.length) box.appendChild(el(`<div class="tiny muted">— brak —</div>`));
+  subm.forEach(s=>{
+    const row = el(`<div class="flexbar" style="margin-bottom:6px"></div>`);
+    const canDel = opt.isStudent && s.student_id===profile.id;
+    row.appendChild(fileChip(s.file_path, s.file_name, canDel? async ()=>{
+      if(confirm('Usunąć przesłany plik?')){ await sb.from('homework_submissions').delete().eq('id',s.id); toast('Usunięto'); opt.reload&&opt.reload(); }
+    }:null));
+    row.appendChild(el(`<span class="tiny muted">${fmtDT(s.submitted_at)}${s.note?' · '+esc(s.note):''}</span>`));
+    box.appendChild(row);
+  });
+  card.appendChild(box);
+
+  if(opt.isStudent){
+    const bar = el(`<div class="flexbar" style="margin-top:12px"></div>`);
+    bar.appendChild(btn('Prześlij plik', ()=> openSubmitModal(hw, opt.reload)));
+    card.appendChild(bar);
+  } else if(opt.editable){
+    const bar = el(`<div class="flexbar" style="margin-top:12px"></div>`);
+    bar.append(
+      btn('Edytuj', ()=> openHomeworkModal({hw, students:opt.students, subs:opt.subsForEdit, onSave:opt.reload}),'ghost sm'),
+      btn('Usuń', async ()=>{ if(confirm('Usunąć zadanie?')){ await sb.from('homework').delete().eq('id',hw.id); toast('Usunięto'); opt.reload&&opt.reload(); } },'danger sm')
+    );
+    card.appendChild(bar);
+  }
+  return card;
+}
+function openHomeworkModal({studentId, students, subs, hw, onSave}){
+  const editing=!!hw;
+  const opt = arr => arr.map(x=>`<option value="${x.id}">${esc(x.full_name||x.name)}</option>`).join('');
+  modal(editing?'Edytuj zadanie':'Zadaj pracę domową', `
+    <div class="stack">
+      <label class="fld">Uczeń<select id="hm-student" ${editing?'disabled':''}>${opt(students)}</select></label>
+      <label class="fld">Przedmiot<select id="hm-subject">${opt(subs)}</select></label>
+      <label class="fld">Tytuł<input id="hm-title" value="${esc(hw?.title||'')}" placeholder="np. Zadania 1–5 str. 42"></label>
+      <label class="fld">Treść / polecenie<textarea id="hm-desc">${esc(hw?.description||'')}</textarea></label>
+      <label class="fld">Termin oddania<input id="hm-due" type="date" value="${hw?.due_date||''}"></label>
+      <label class="fld">Załącznik dla ucznia (opcjonalnie)<input type="file" id="hm-file"></label>
+      ${hw?.attachment_path?`<div class="tiny muted">Obecny plik: ${esc(hw.attachment_name||'załącznik')} — wgranie nowego go zastąpi.</div>`:''}
+    </div>`,
+    async (m)=>{
+      const title=m.querySelector('#hm-title').value.trim();
+      if(!title){ toast('Podaj tytuł','err'); return false; }
+      let att = editing?{path:hw.attachment_path, name:hw.attachment_name}:{path:null,name:null};
+      const f=m.querySelector('#hm-file').files[0];
+      try{ if(f){ const up=await uploadFile(f,'homework'); att={path:up.path, name:up.name}; } }
+      catch(e){ toast('Błąd wysyłania pliku','err'); return false; }
+      const payload={
+        student_id: editing?hw.student_id:m.querySelector('#hm-student').value,
+        subject_id: m.querySelector('#hm-subject').value,
+        title, description:m.querySelector('#hm-desc').value.trim()||null,
+        due_date:m.querySelector('#hm-due').value||null,
+        attachment_path:att.path, attachment_name:att.name, teacher_id:profile.id,
+      };
+      if(editing){ await sb.from('homework').update(payload).eq('id',hw.id); }
+      else { await sb.from('homework').insert(payload); }
+      toast('Zapisano'); onSave&&onSave(); return true;
+    },
+    editing? async ()=>{ if(confirm('Usunąć zadanie?')){ await sb.from('homework').delete().eq('id',hw.id); toast('Usunięto'); onSave&&onSave(); closeModal(); } }:null);
+  if(!editing) document.querySelector('#hm-student').value=studentId;
+  document.querySelector('#hm-subject').value=hw?.subject_id||subs[0]?.id;
+}
+function openSubmitModal(hw, reload){
+  modal('Prześlij wykonaną pracę', `
+    <div class="stack">
+      <label class="fld">Plik z zadaniem<input type="file" id="sub-file"></label>
+      <label class="fld">Komentarz (opcjonalnie)<input id="sub-note" placeholder="np. gotowe zadania 1–5"></label>
+    </div>`,
+    async (m)=>{
+      const f=m.querySelector('#sub-file').files[0];
+      if(!f){ toast('Wybierz plik','err'); return false; }
+      try{
+        const up=await uploadFile(f,'submissions');
+        await sb.from('homework_submissions').insert({homework_id:hw.id, student_id:profile.id, file_path:up.path, file_name:up.name, note:m.querySelector('#sub-note').value.trim()||null});
+      }catch(e){ toast('Błąd wysyłania','err'); return false; }
+      toast('Przesłano'); reload&&reload(); return true;
+    });
+}
+
+/* ============================================================
+   SPRAWDZIANY
+   ============================================================ */
+async function tabTests(){
+  if(profile.role==='student') return studentResourceList('tests');
+  return teacherResourceTab({
+    title:'Sprawdziany', table:'tests', addLabel:'+ Dodaj sprawdzian',
+    openModal:openTestModal, card:testCard, selectStr:'*, subject:subjects(name)'
+  });
+}
+function testCard(tt, opt){
+  const card = el(`<section class="panel"></section>`);
+  card.appendChild(el(`<div class="subject-head">
+    <h4>${esc(tt.title)}</h4>
+    <span class="avg">${esc(tt.subject?.name||'')}${tt.test_date?` · <b>${fmtDate(tt.test_date)}</b>`:''}</span>
+  </div>`));
+  if(tt.description) card.appendChild(el(`<div style="white-space:pre-wrap; margin:2px 0 10px">${esc(tt.description)}</div>`));
+  if(tt.link || tt.attachment_path){
+    const links = el(`<div class="flexbar"></div>`);
+    if(tt.link) links.appendChild(el(`<a class="link-a" href="${esc(tt.link)}" target="_blank" rel="noopener">Otwórz link ↗</a>`));
+    if(tt.attachment_path) links.appendChild(fileChip(tt.attachment_path, tt.attachment_name));
+    card.appendChild(links);
+  }
+  if(opt.editable){
+    const bar = el(`<div class="flexbar" style="margin-top:12px"></div>`);
+    bar.append(
+      btn('Edytuj', ()=> openTestModal({tt, students:opt.students, subs:opt.subsForEdit, onSave:opt.reload}),'ghost sm'),
+      btn('Usuń', async ()=>{ if(confirm('Usunąć sprawdzian?')){ await sb.from('tests').delete().eq('id',tt.id); toast('Usunięto'); opt.reload&&opt.reload(); } },'danger sm')
+    );
+    card.appendChild(bar);
+  }
+  return card;
+}
+function openTestModal({studentId, students, subs, tt, onSave}){
+  const editing=!!tt;
+  const opt = arr => arr.map(x=>`<option value="${x.id}">${esc(x.full_name||x.name)}</option>`).join('');
+  modal(editing?'Edytuj sprawdzian':'Dodaj sprawdzian', `
+    <div class="stack">
+      <label class="fld">Uczeń<select id="tm-student" ${editing?'disabled':''}>${opt(students)}</select></label>
+      <label class="fld">Przedmiot<select id="tm-subject">${opt(subs)}</select></label>
+      <label class="fld">Tytuł<input id="tm-title" value="${esc(tt?.title||'')}" placeholder="np. Sprawdzian – ułamki"></label>
+      <label class="fld">Opis (opcjonalnie)<textarea id="tm-desc">${esc(tt?.description||'')}</textarea></label>
+      <label class="fld">Data<input id="tm-date" type="date" value="${tt?.test_date||''}"></label>
+      <label class="fld">Link do sprawdzianu (opcjonalnie)<input id="tm-link" value="${esc(tt?.link||'')}" placeholder="https://…"></label>
+      <label class="fld">Plik ze sprawdzianem (opcjonalnie)<input type="file" id="tm-file"></label>
+      ${tt?.attachment_path?`<div class="tiny muted">Obecny plik: ${esc(tt.attachment_name||'załącznik')} — nowy go zastąpi.</div>`:''}
+    </div>`,
+    async (m)=>{
+      const title=m.querySelector('#tm-title').value.trim();
+      if(!title){ toast('Podaj tytuł','err'); return false; }
+      let att = editing?{path:tt.attachment_path, name:tt.attachment_name}:{path:null,name:null};
+      const f=m.querySelector('#tm-file').files[0];
+      try{ if(f){ const up=await uploadFile(f,'tests'); att={path:up.path, name:up.name}; } }
+      catch(e){ toast('Błąd wysyłania pliku','err'); return false; }
+      const payload={
+        student_id: editing?tt.student_id:m.querySelector('#tm-student').value,
+        subject_id: m.querySelector('#tm-subject').value,
+        title, description:m.querySelector('#tm-desc').value.trim()||null,
+        test_date:m.querySelector('#tm-date').value||null,
+        link:m.querySelector('#tm-link').value.trim()||null,
+        attachment_path:att.path, attachment_name:att.name, teacher_id:profile.id,
+      };
+      if(editing){ await sb.from('tests').update(payload).eq('id',tt.id); }
+      else { await sb.from('tests').insert(payload); }
+      toast('Zapisano'); onSave&&onSave(); return true;
+    },
+    editing? async ()=>{ if(confirm('Usunąć sprawdzian?')){ await sb.from('tests').delete().eq('id',tt.id); toast('Usunięto'); onSave&&onSave(); closeModal(); } }:null);
+  if(!editing) document.querySelector('#tm-student').value=studentId;
+  document.querySelector('#tm-subject').value=tt?.subject_id||subs[0]?.id;
+}
+
+/* ============================================================
+   NOTATKI
+   ============================================================ */
+async function tabNotes(){
+  if(profile.role==='student') return studentResourceList('notes');
+  return teacherResourceTab({
+    title:'Notatki', table:'notes', addLabel:'+ Dodaj notatkę',
+    openModal:openNoteModal, card:noteCard, selectStr:'*, subject:subjects(name)'
+  });
+}
+function noteCard(nn, opt){
+  const card = el(`<section class="panel"></section>`);
+  card.appendChild(el(`<div class="subject-head">
+    <h4>${esc(nn.title)}</h4><span class="avg">${esc(nn.subject?.name||'')}</span>
+  </div>`));
+  if(nn.content) card.appendChild(el(`<div style="white-space:pre-wrap; margin:2px 0 10px">${esc(nn.content)}</div>`));
+  if(nn.attachment_path){
+    const r = el(`<div class="flexbar"></div>`);
+    r.appendChild(fileChip(nn.attachment_path, nn.attachment_name)); card.appendChild(r);
+  }
+  if(opt.editable){
+    const bar = el(`<div class="flexbar" style="margin-top:12px"></div>`);
+    bar.append(
+      btn('Edytuj', ()=> openNoteModal({nn, students:opt.students, subs:opt.subsForEdit, onSave:opt.reload}),'ghost sm'),
+      btn('Usuń', async ()=>{ if(confirm('Usunąć notatkę?')){ await sb.from('notes').delete().eq('id',nn.id); toast('Usunięto'); opt.reload&&opt.reload(); } },'danger sm')
+    );
+    card.appendChild(bar);
+  }
+  return card;
+}
+function openNoteModal({studentId, students, subs, nn, onSave}){
+  const editing=!!nn;
+  const opt = arr => arr.map(x=>`<option value="${x.id}">${esc(x.full_name||x.name)}</option>`).join('');
+  modal(editing?'Edytuj notatkę':'Dodaj notatkę', `
+    <div class="stack">
+      <label class="fld">Uczeń<select id="nm-student" ${editing?'disabled':''}>${opt(students)}</select></label>
+      <label class="fld">Przedmiot<select id="nm-subject">${opt(subs)}</select></label>
+      <label class="fld">Tytuł<input id="nm-title" value="${esc(nn?.title||'')}" placeholder="np. Notatka z lekcji – funkcje"></label>
+      <label class="fld">Treść (opcjonalnie)<textarea id="nm-content">${esc(nn?.content||'')}</textarea></label>
+      <label class="fld">Plik z notatką (opcjonalnie)<input type="file" id="nm-file"></label>
+      ${nn?.attachment_path?`<div class="tiny muted">Obecny plik: ${esc(nn.attachment_name||'załącznik')} — nowy go zastąpi.</div>`:''}
+    </div>`,
+    async (m)=>{
+      const title=m.querySelector('#nm-title').value.trim();
+      if(!title){ toast('Podaj tytuł','err'); return false; }
+      let att = editing?{path:nn.attachment_path, name:nn.attachment_name}:{path:null,name:null};
+      const f=m.querySelector('#nm-file').files[0];
+      try{ if(f){ const up=await uploadFile(f,'notes'); att={path:up.path, name:up.name}; } }
+      catch(e){ toast('Błąd wysyłania pliku','err'); return false; }
+      const payload={
+        student_id: editing?nn.student_id:m.querySelector('#nm-student').value,
+        subject_id: m.querySelector('#nm-subject').value,
+        title, content:m.querySelector('#nm-content').value.trim()||null,
+        attachment_path:att.path, attachment_name:att.name, teacher_id:profile.id,
+      };
+      if(editing){ await sb.from('notes').update(payload).eq('id',nn.id); }
+      else { await sb.from('notes').insert(payload); }
+      toast('Zapisano'); onSave&&onSave(); return true;
+    },
+    editing? async ()=>{ if(confirm('Usunąć notatkę?')){ await sb.from('notes').delete().eq('id',nn.id); toast('Usunięto'); onSave&&onSave(); closeModal(); } }:null);
+  if(!editing) document.querySelector('#nm-student').value=studentId;
+  document.querySelector('#nm-subject').value=nn?.subject_id||subs[0]?.id;
 }
 
 /* ============================================================
