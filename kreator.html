@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kreator prac pisemnych — GAMIK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+    svg: { fontCache: 'global' },
+    startup: { typeset: false }
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+<style>
+  :root{
+    --bg:#e8eaed; --paper:#fff; --ink:#15181d; --muted:#697079; --muted-2:#9aa0a8;
+    --line:#d5d9df; --line-2:#c3c9d1;
+    --navy:#223a5e; --navy-d:#1a2d49; --navy-soft:#eef2f8;
+    --ok:#1c7a43; --bad:#b3261e;
+    --radius:12px; --radius-sm:8px;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --serif:'Spectral',Georgia,'Times New Roman',serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:var(--sans); background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased; font-size:14.5px; line-height:1.5}
+  button{font-family:inherit; cursor:pointer}
+  input,select,textarea{font-family:inherit}
+  :focus-visible{outline:2px solid var(--navy); outline-offset:2px; border-radius:4px}
+
+  /* ---------- chrome ---------- */
+  .chrome-top{
+    position:sticky; top:0; z-index:30; background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); display:flex; align-items:center; gap:16px; padding:11px 20px; flex-wrap:wrap;
+  }
+  .mark{display:flex; align-items:center; gap:10px; font-weight:600}
+  .mark .t{font-size:15px}
+  .mark .t b{font-weight:700; letter-spacing:.02em}
+  .mark .t span{color:var(--muted); font-weight:500}
+  .grow{flex:1}
+  .toolbtns{display:flex; gap:8px; flex-wrap:wrap}
+  .btn{border:1px solid var(--navy); background:var(--navy); color:#fff; padding:8px 14px; border-radius:var(--radius-sm); font-size:13.5px; font-weight:600; transition:opacity .12s}
+  .btn:hover{opacity:.9}
+  .btn.ghost{background:#fff; color:var(--ink); border-color:var(--line-2)}
+  .btn.ghost:hover{background:#f6f7f9; opacity:1}
+  .btn.sm{padding:5px 10px; font-size:12.5px}
+  .btn.icon{padding:5px 9px; font-size:13px; background:#fff; color:var(--ink); border-color:var(--line-2)}
+  .btn.icon:hover{background:#f2f4f7}
+  .btn.danger{background:#fff; color:var(--bad); border-color:#e6c3c1}
+  .btn.danger:hover{background:#fbf0ef}
+
+  select.subj{border:1px solid var(--line-2); border-radius:var(--radius-sm); padding:8px 12px; font-weight:600; background:#fff}
+
+  .wrap{max-width:900px; margin:0 auto; padding:22px 18px 90px}
+
+  /* ---------- editor blocks ---------- */
+  .block{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:16px}
+  .block > h2{font-size:12px; letter-spacing:.02em; color:var(--muted); margin:0 0 14px; font-weight:700; text-transform:none}
+  .fields{display:grid; grid-template-columns:repeat(2,1fr); gap:12px}
+  .fields .full{grid-column:1/-1}
+  @media(max-width:620px){ .fields{grid-template-columns:1fr} }
+  label.f{display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:600; color:var(--muted)}
+  label.f input, label.f select, label.f textarea{
+    font-size:14px; color:var(--ink); background:#fff; border:1px solid var(--line-2);
+    border-radius:var(--radius-sm); padding:9px 11px; font-weight:400;
+  }
+  label.f textarea{resize:vertical; min-height:64px; line-height:1.5}
+  label.f input:focus, label.f select:focus, label.f textarea:focus{border-color:var(--navy); outline:1px solid var(--navy)}
+
+  .palette{display:flex; flex-wrap:wrap; gap:8px}
+  .palette button{
+    border:1px solid var(--line-2); background:#fff; color:var(--ink); border-radius:999px;
+    padding:8px 14px; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:7px;
+  }
+  .palette button:hover{border-color:var(--navy); color:var(--navy); background:var(--navy-soft)}
+  .palette button .dot{width:7px; height:7px; border-radius:50%; background:var(--navy)}
+
+  /* math helper */
+  .mathbar{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line)}
+  .mathbar .lab{font-size:12px; color:var(--muted); font-weight:600; margin-right:2px}
+  .mathbar button{border:1px solid var(--line-2); background:#fff; border-radius:6px; padding:4px 9px; font-size:14px; font-family:var(--serif)}
+  .mathbar button:hover{background:var(--navy-soft); border-color:var(--navy)}
+
+  /* task cards */
+  .task-card{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:14px; overflow:hidden}
+  .task-card .tc-head{display:flex; align-items:center; gap:10px; padding:11px 14px; background:#f7f8fa; border-bottom:1px solid var(--line)}
+  .tc-num{font-weight:700; font-size:14px}
+  .tc-type{font-size:12px; color:var(--muted); font-weight:600; padding:2px 9px; border:1px solid var(--line-2); border-radius:999px; background:#fff}
+  .tc-head .grow{flex:1}
+  .tc-pts{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); font-weight:600}
+  .tc-pts input{width:56px; text-align:center; border:1px solid var(--line-2); border-radius:6px; padding:5px; font-size:14px; font-weight:600}
+  .tc-body{padding:14px}
+  .opt-row{display:flex; align-items:center; gap:8px; margin-bottom:7px}
+  .opt-row .let{width:22px; height:22px; border-radius:5px; background:var(--navy-soft); color:var(--navy); display:grid; place-items:center; font-weight:700; font-size:12px; flex:0 0 auto}
+  .opt-row input[type=text]{flex:1; border:1px solid var(--line-2); border-radius:6px; padding:7px 9px; font-size:14px}
+  .opt-row .key{display:flex; align-items:center; gap:4px; font-size:11.5px; color:var(--muted); white-space:nowrap}
+  .mini{border:1px solid var(--line-2); background:#fff; border-radius:6px; padding:4px 9px; font-size:12.5px; font-weight:600; color:var(--muted)}
+  .mini:hover{color:var(--navy); border-color:var(--navy)}
+  .hintline{font-size:12px; color:var(--muted-2); margin-top:6px}
+  .imgprev{max-width:220px; max-height:150px; border:1px solid var(--line); border-radius:8px; margin-top:8px; display:block}
+  .empty{ text-align:center; color:var(--muted-2); padding:34px; border:1px dashed var(--line-2); border-radius:var(--radius); background:#fff}
+
+  /* ==================================================
+     ARKUSZ (sheet) — the hero, matura style
+     ================================================== */
+  .stage{display:none}
+  body.previewing .editor{display:none}
+  body.previewing .stage{display:block}
+
+  .sheet{
+    background:#fff; color:#000; font-family:var(--serif);
+    width:210mm; max-width:100%; margin:0 auto 40px; padding:18mm 16mm;
+    box-shadow:0 3px 40px rgba(20,24,31,.14); border:1px solid #e3e3e3;
+    line-height:1.55; font-size:12.3pt;
+  }
+  .sheet .sub-line{display:flex; justify-content:space-between; font-size:10.5pt; letter-spacing:.02em; padding-bottom:6px; border-bottom:1.5px solid #000}
+  .sheet .sub-line span{font-weight:600}
+  .sheet-headgrid{display:flex; gap:18px; align-items:stretch; margin-top:14px}
+  .sheet-headgrid .titlecol{flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center; border:1.5px solid #000; padding:14px 16px}
+  .sheet .worktype{font-size:22pt; font-weight:700; letter-spacing:.16em; margin:0}
+  .sheet .topic{font-size:13pt; margin:8px 0 0; font-weight:500}
+  .sheet .topic .lab{color:#333; font-style:italic; font-weight:400; margin-right:6px; font-size:11pt}
+
+  .gradebox{width:52mm; border:1.5px solid #000; display:flex; flex-direction:column}
+  .gradebox .pts{padding:7px 10px; border-bottom:1.5px solid #000; font-size:10.5pt; display:flex; justify-content:space-between; align-items:baseline}
+  .gradebox .pts b{font-size:14pt}
+  .gradebox .oc-lab{padding:4px 10px 0; font-size:9.5pt; letter-spacing:.16em; font-weight:700}
+  .gradebox .oc-space{flex:1; min-height:24mm; display:grid; place-items:center; font-size:20pt; color:#c9c9c9}
+
+  .identity{display:flex; flex-wrap:wrap; gap:6px 26px; margin:16px 0 4px; font-size:11.5pt}
+  .identity .fld{display:flex; align-items:baseline; gap:8px; flex:1 1 46%}
+  .identity .fld .lb{white-space:nowrap; font-weight:600}
+  .identity .fld .ln{flex:1; border-bottom:1px solid #000; min-width:60px; align-self:flex-end; height:15px}
+
+  .instruction{font-size:10.8pt; font-style:italic; color:#1a1a1a; border-left:3px solid var(--navy); padding:6px 0 6px 12px; margin:14px 0 4px; background:#fafbfd}
+  .sheet-rule{border:0; border-top:1.5px solid #000; margin:14px 0}
+
+  .task{display:flex; gap:12px; padding:12px 0; border-bottom:1px solid #d9d9d9}
+  .task:last-child{border-bottom:0}
+  .task-main{flex:1; min-width:0}
+  .task-head{font-weight:700; font-size:12.5pt; margin-bottom:4px}
+  .task-head .lead{font-weight:400}
+  .task-body{white-space:normal}
+  .task-src{border:1px solid #000; padding:10px 12px; margin:8px 0; font-size:11pt; background:#fbfbfb}
+  .task-src .src-cap{font-size:9.5pt; font-style:italic; color:#333; margin-top:6px; text-align:right}
+  .task-img{max-width:100%; max-height:80mm; display:block; margin:8px auto; border:1px solid #000}
+  .opt{margin:5px 0 0 4px}
+  .opt .lt{font-weight:700; margin-right:7px}
+  .opt.correct{background:#eef7f0}
+  .tf-row{display:flex; align-items:center; gap:14px; margin:5px 0}
+  .tf-row .st{flex:1}
+  .tf-row .pf{font-weight:700; letter-spacing:.12em; white-space:nowrap}
+  .tf-row .pf .on{color:var(--ok); text-decoration:underline}
+  .match-wrap{display:flex; gap:22px; margin-top:6px}
+  .match-wrap ol,.match-wrap ul{margin:4px 0; padding-left:22px}
+  .match-wrap .col{flex:1}
+  .match-key{font-size:10pt; margin-top:6px; color:var(--ok)}
+  .writelines{margin-top:8px}
+  .wl{border-bottom:1px dotted #555; height:26px}
+  .workbox{margin-top:8px; border:1px solid #000; min-height:40mm}
+  .workbox.grid{background-image:linear-gradient(#e6e6e6 1px,transparent 1px),linear-gradient(90deg,#e6e6e6 1px,transparent 1px); background-size:5mm 5mm}
+  .points-tag{flex:0 0 auto; width:16mm; text-align:center}
+  .points-tag .bx{border:1.2px solid #000; border-radius:3px; padding:3px 0; font-size:9.5pt; line-height:1.25}
+  .points-tag .bx b{display:block; font-size:11pt}
+  .points-tag .pp{font-size:8.5pt; color:#333; margin-top:2px}
+
+  .brudnopis{margin-top:16px; border-top:1.5px solid #000; padding-top:8px}
+  .brudnopis .bl{font-weight:700; letter-spacing:.14em; font-size:10pt}
+  .sheet-foot{margin-top:18px; text-align:center; font-size:8.5pt; color:#8a8a8a; letter-spacing:.03em}
+
+  .preview-note{max-width:210mm; margin:0 auto 14px; font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .switchkey{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--ink); font-weight:600}
+
+  @media(max-width:840px){ .sheet{padding:12mm 9mm} .sheet-headgrid{flex-direction:column} .gradebox{width:100%} }
+
+  /* ---------- print ---------- */
+  @media print{
+    .chrome-top,.editor,.preview-note,.noprint{display:none !important}
+    body{background:#fff}
+    body .stage{display:block}
+    .sheet{box-shadow:none; border:0; margin:0; width:auto; max-width:none; padding:0}
+    @page{size:A4; margin:14mm}
+    .task,.gradebox,.sheet-headgrid,.workbox,.task-src{break-inside:avoid}
+    .task-head{break-after:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="chrome-top">
+  <div class="mark">
+    <svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true">
+      <polygon points="50,22 90,42 50,62 10,42" fill="#223a5e"/>
+      <path d="M32 54 v13 c0 6 8 11 18 11 s18-5 18-11 V54 L50 63 Z" fill="#223a5e"/>
+    </svg>
+    <span class="t"><b>Kreator prac pisemnych</b> <span>· GAMIK</span></span>
+  </div>
+  <div class="grow"></div>
+  <select class="subj" id="subject" title="Przedmiot">
+    <option>Historia</option>
+    <option>Wiedza o społeczeństwie</option>
+    <option>Matematyka</option>
+  </select>
+  <div class="toolbtns">
+    <button class="btn ghost" id="btn-edit" style="display:none">← Wróć do edycji</button>
+    <button class="btn ghost" id="btn-save">Zapisz plik</button>
+    <button class="btn ghost" id="btn-load">Wczytaj</button>
+    <button class="btn ghost" id="btn-preview">Podgląd</button>
+    <button class="btn" id="btn-print">Drukuj / PDF</button>
+  </div>
+  <input type="file" id="file-load" accept="application/json" style="display:none">
+</div>
+
+<div class="wrap">
+  <!-- EDYTOR -->
+  <div class="editor" id="editor">
+    <div class="block">
+      <h2>Ustawienia arkusza</h2>
+      <div class="fields">
+        <label class="f">Typ pracy<input id="m-worktype" placeholder="np. Sprawdzian, Praca klasowa, Kartkówka, Egzamin"></label>
+        <label class="f">Temat / dział<input id="m-topic" placeholder="np. II wojna światowa"></label>
+        <label class="f">Klasa<input id="m-klasa" placeholder="np. VIII a"></label>
+        <label class="f">Czas (min)<input id="m-duration" placeholder="45"></label>
+        <label class="f">Szkoła<input id="m-school" placeholder="np. Szkoła Podstawowa nr 1"></label>
+        <label class="f">Nauczyciel<input id="m-teacher" placeholder="np. mgr Jan Kowalski"></label>
+        <label class="f full">Instrukcja dla ucznia<textarea id="m-instruction"></textarea></label>
+      </div>
+      <div class="mathbar" id="mathbar">
+        <span class="lab">Wstaw wzór (do aktywnego pola):</span>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:16px; flex-wrap:wrap; font-size:13px">
+        <label style="display:flex; align-items:center; gap:7px; font-weight:600; color:var(--muted)"><input type="checkbox" id="m-brudnopis"> Dodaj brudnopis na końcu</label>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Dodaj zadanie</h2>
+      <div class="palette" id="palette"></div>
+    </div>
+
+    <div id="tasks"></div>
+  </div>
+
+  <!-- PODGLĄD -->
+  <div class="stage" id="stage">
+    <div class="preview-note noprint">
+      <span>Podgląd arkusza — tak wydrukuje się praca.</span>
+      <label class="switchkey"><input type="checkbox" id="chk-key"> Pokaż klucz odpowiedzi</label>
+    </div>
+    <div class="sheet" id="sheet"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Kreator prac pisemnych — logika (bez bazy, wszystko lokalnie)
+   ============================================================ */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const el = h => { const t=document.createElement('template'); t.innerHTML=h.trim(); return t.content.firstElementChild; };
+const uid = () => 'z'+Math.random().toString(36).slice(2,9);
+
+const TYPES = {
+  closed:   {label:'Zamknięte (wybór)',        lead:'Zaznacz poprawną odpowiedź.'},
+  truefalse:{label:'Prawda / Fałsz',           lead:'Oceń prawdziwość zdań.'},
+  matching: {label:'Na dobieranie',            lead:'Przyporządkuj elementy.'},
+  gaps:     {label:'Uzupełnianie luk',         lead:'Uzupełnij luki.'},
+  open:     {label:'Otwarte',                  lead:''},
+  source:   {label:'Ze źródłem',               lead:'Na podstawie źródła wykonaj polecenie.'},
+  image:    {label:'Z obrazem / mapą',         lead:'Na podstawie ilustracji wykonaj polecenie.'},
+  essay:    {label:'Wypracowanie',             lead:''},
+  math:     {label:'Zadanie matematyczne',     lead:''},
+};
+
+const DEFAULT_INSTRUCTION =
+  'Przeczytaj uważnie polecenia. Pisz czytelnie, długopisem. W zadaniach zamkniętych zaznacz jedną poprawną odpowiedź. Nie używaj korektora.';
+
+let state = { meta:{}, tasks:[] };
+let activeField = null;      // ostatnio aktywne pole tekstowe (do wstawiania wzorów)
+
+function newTask(type){
+  const b = { id:uid(), type, content:'', points:2 };
+  if(type==='closed')    return {...b, options:['','',''], correct:null};
+  if(type==='truefalse') return {...b, statements:[{text:'',ans:null},{text:'',ans:null}]};
+  if(type==='matching')  return {...b, left:[{text:'',correct:''}], right:['','']};
+  if(type==='gaps')      return {...b, lines:2};
+  if(type==='open')      return {...b, lines:4};
+  if(type==='source')    return {...b, source:'', sourceLabel:'Źródło', lines:5};
+  if(type==='image')     return {...b, image:null, caption:'', lines:5};
+  if(type==='essay')     return {...b, points:15, lines:18};
+  if(type==='math')      return {...b, points:4, lines:8, grid:true};
+  return b;
+}
+
+/* ---------- start ---------- */
+function initMeta(){
+  state.meta = { subject:'Historia', workType:'Sprawdzian', topic:'', klasa:'', duration:'45',
+                 date:'', school:'', teacher:'', instruction:DEFAULT_INSTRUCTION, brudnopis:false };
+}
+function bindMeta(){
+  const m=state.meta;
+  document.getElementById('subject').value = m.subject;
+  document.getElementById('m-worktype').value = m.workType;
+  document.getElementById('m-topic').value = m.topic;
+  document.getElementById('m-klasa').value = m.klasa;
+  document.getElementById('m-duration').value = m.duration;
+  document.getElementById('m-school').value = m.school;
+  document.getElementById('m-teacher').value = m.teacher;
+  document.getElementById('m-instruction').value = m.instruction;
+  document.getElementById('m-brudnopis').checked = !!m.brudnopis;
+}
+const metaMap = {
+  'subject':'subject','m-worktype':'workType','m-topic':'topic','m-klasa':'klasa',
+  'm-duration':'duration','m-school':'school','m-teacher':'teacher','m-instruction':'instruction'
+};
+Object.keys(metaMap).forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=>{ state.meta[metaMap[id]] = e.target.value; });
+});
+document.getElementById('m-brudnopis').addEventListener('change', e=>{ state.meta.brudnopis = e.target.checked; });
+
+/* ---------- palette ---------- */
+const palette = document.getElementById('palette');
+Object.entries(TYPES).forEach(([type,info])=>{
+  const b = el(`<button><span class="dot"></span>${esc(info.label)}</button>`);
+  b.onclick = ()=>{ state.tasks.push(newTask(type)); renderTasks(); const c=document.querySelector('.task-card:last-child'); c && c.scrollIntoView({behavior:'smooth',block:'center'}); };
+  palette.appendChild(b);
+});
+
+/* ---------- math toolbar ---------- */
+const MATH_SNIPPETS = [
+  ['x²','^{}'], ['x₁','_{}'], ['√','\\sqrt{}'], ['ⁿ√','\\sqrt[n]{}'],
+  ['a/b','\\frac{}{}'], ['·','\\cdot '], ['×','\\times '], ['÷','\\div '],
+  ['±','\\pm '], ['≤','\\leq '], ['≥','\\geq '], ['≠','\\neq '],
+  ['π','\\pi '], ['°','^{\\circ}'], ['∠','\\angle '], ['Δ','\\Delta '],
+  ['∑','\\sum_{}^{}'], ['∫','\\int_{}^{}'], ['→','\\to '], ['∞','\\infty '],
+];
+const mathbar = document.getElementById('mathbar');
+MATH_SNIPPETS.forEach(([label,snippet])=>{
+  const b = el(`<button title="${esc(snippet)}">${esc(label)}</button>`);
+  b.type='button';
+  b.onmousedown = e=> e.preventDefault();  // nie gub fokusu z pola
+  b.onclick = ()=> insertMath(snippet);
+  mathbar.appendChild(b);
+});
+const hint = el(`<button title="wzór w tekście" style="font-family:var(--sans); font-size:12px">$…$</button>`);
+hint.type='button'; hint.onmousedown=e=>e.preventDefault(); hint.onclick=()=>insertMath('$$',true);
+mathbar.appendChild(hint);
+
+function trackField(e){ const t=e.target; if(t.matches('textarea, input[type=text]')) activeField=t; }
+document.addEventListener('focusin', trackField);
+
+function insertMath(snippet, wrapDollar){
+  const f = activeField;
+  if(!f){ alert('Kliknij najpierw w pole tekstowe (treść zadania), do którego wstawić wzór.'); return; }
+  const s=f.selectionStart ?? f.value.length, eN=f.selectionEnd ?? f.value.length;
+  let ins = snippet, caret;
+  if(wrapDollar){ ins='$'+f.value.slice(s,eN)+'$'; caret = s+1; }
+  else {
+    // wstaw wzór; jeśli nie jesteśmy między $...$, opakuj
+    const before=f.value.slice(0,s);
+    const dollars=(before.match(/\$/g)||[]).length;
+    const inside = dollars % 2 === 1;
+    ins = inside ? snippet : '$'+snippet+'$';
+    const braceRel = snippet.indexOf('{}');
+    caret = s + (inside?0:1) + (braceRel>=0? braceRel+1 : snippet.length);
+  }
+  f.value = f.value.slice(0,s) + ins + f.value.slice(eN);
+  f.dispatchEvent(new Event('input',{bubbles:true}));
+  f.focus();
+  const pos = wrapDollar ? caret : caret;
+  f.setSelectionRange(pos,pos);
+}
+
+/* ---------- render task editors ---------- */
+const tasksBox = document.getElementById('tasks');
+function renderTasks(){
+  tasksBox.innerHTML='';
+  if(!state.tasks.length){
+    tasksBox.appendChild(el(`<div class="empty">Brak zadań. Wybierz typ zadania powyżej, aby zacząć.</div>`));
+    return;
+  }
+  state.tasks.forEach((task,i)=> tasksBox.appendChild(taskCard(task,i)));
+}
+
+function fieldInput(task,key,ph,area){
+  const tag = area ? `<textarea>${esc(task[key]||'')}</textarea>` : `<input type="text" value="${esc(task[key]||'')}">`;
+  const w = el(`<label class="f full">${esc(ph.label)}${tag}</label>`);
+  const inp = w.querySelector(area?'textarea':'input');
+  if(ph.placeholder) inp.placeholder = ph.placeholder;
+  inp.oninput = ()=> task[key]=inp.value;
+  return w;
+}
+
+function taskCard(task,i){
+  const info=TYPES[task.type];
+  const card = el(`<div class="task-card">
+    <div class="tc-head">
+      <span class="tc-num">Zadanie ${i+1}</span>
+      <span class="tc-type">${esc(info.label)}</span>
+      <span class="grow"></span>
+      <span class="tc-pts">pkt <input type="number" min="0" step="1" value="${task.points}"></span>
+      <button class="btn icon" title="W górę">↑</button>
+      <button class="btn icon" title="W dół">↓</button>
+      <button class="btn icon" title="Duplikuj">⧉</button>
+      <button class="btn danger sm" title="Usuń">Usuń</button>
+    </div>
+    <div class="tc-body"></div>
+  </div>`);
+  const [ptsInp, upB, downB, dupB, delB] = card.querySelectorAll('.tc-pts input, .btn');
+  ptsInp.oninput = ()=> task.points = parseInt(ptsInp.value)||0;
+  upB.onclick   = ()=>{ if(i>0){ [state.tasks[i-1],state.tasks[i]]=[state.tasks[i],state.tasks[i-1]]; renderTasks(); } };
+  downB.onclick = ()=>{ if(i<state.tasks.length-1){ [state.tasks[i+1],state.tasks[i]]=[state.tasks[i],state.tasks[i+1]]; renderTasks(); } };
+  dupB.onclick  = ()=>{ const c=JSON.parse(JSON.stringify(task)); c.id=uid(); state.tasks.splice(i+1,0,c); renderTasks(); };
+  delB.onclick  = ()=>{ if(confirm('Usunąć zadanie '+(i+1)+'?')){ state.tasks.splice(i,1); renderTasks(); } };
+
+  const body = card.querySelector('.tc-body');
+
+  // treść / polecenie (dla większości)
+  const contentLabel = task.type==='essay' ? 'Temat i wytyczne wypracowania'
+                     : task.type==='source' ? 'Polecenie (do źródła)'
+                     : task.type==='image' ? 'Polecenie (do ilustracji)'
+                     : 'Treść / polecenie';
+  body.appendChild(fieldInput(task,'content',{label:contentLabel, placeholder:'Wpisz treść… (wzory: $x^2+1$)'}, true));
+
+  if(task.type==='source'){
+    body.appendChild(fieldInput(task,'source',{label:'Tekst źródła', placeholder:'Wklej fragment źródła…'}, true));
+    body.appendChild(fieldInput(task,'sourceLabel',{label:'Podpis źródła', placeholder:'np. Źródło: Konstytucja RP, art. 2'}, false));
+    body.appendChild(linesField(task));
+  }
+  if(task.type==='image'){
+    const up = el(`<label class="f full">Ilustracja / mapa (plik graficzny)<input type="file" accept="image/*"></label>`);
+    const fileI = up.querySelector('input');
+    fileI.onchange = ()=>{ const f=fileI.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ task.image=r.result; renderTasks(); }; r.readAsDataURL(f); };
+    body.appendChild(up);
+    if(task.image){ const im=el(`<img class="imgprev" src="${task.image}">`); body.appendChild(im); }
+    body.appendChild(fieldInput(task,'caption',{label:'Podpis ilustracji', placeholder:'np. Mapa Europy w 1939 r.'}, false));
+    body.appendChild(linesField(task));
+  }
+  if(task.type==='closed'){
+    const wrap = el(`<div><div class="hintline">Odpowiedzi (zaznacz poprawną w kluczu, jeśli chcesz):</div></div>`);
+    task.options.forEach((opt,oi)=>{
+      const letter = String.fromCharCode(65+oi);
+      const row = el(`<div class="opt-row">
+        <span class="let">${letter}</span>
+        <input type="text" value="${esc(opt)}" placeholder="Treść odpowiedzi ${letter}">
+        <label class="key"><input type="radio" name="key-${task.id}" ${task.correct===oi?'checked':''}> poprawna</label>
+        <button class="mini" title="Usuń">✕</button>
+      </div>`);
+      const inp=row.querySelector('input[type=text]'), rad=row.querySelector('input[type=radio]'), rm=row.querySelector('.mini');
+      inp.oninput=()=> task.options[oi]=inp.value;
+      rad.onchange=()=> task.correct=oi;
+      rm.onclick=()=>{ task.options.splice(oi,1); if(task.correct===oi) task.correct=null; renderTasks(); };
+      wrap.appendChild(row);
+    });
+    const add = el(`<button class="mini" style="margin-top:4px">+ dodaj odpowiedź</button>`);
+    add.onclick=()=>{ task.options.push(''); renderTasks(); };
+    wrap.appendChild(add);
+    body.appendChild(wrap);
+  }
+  if(task.type==='truefalse'){
+    const wrap = el(`<div><div class="hintline">Zdania do oceny (P/F):</div></div>`);
+    task.statements.forEach((st,si)=>{
+      const row = el(`<div class="opt-row">
+        <span class="let">${si+1}</span>
+        <input type="text" value="${esc(st.text)}" placeholder="Treść zdania ${si+1}">
+        <label class="key"><input type="radio" name="tf-${task.id}-${si}" ${st.ans==='P'?'checked':''}> P</label>
+        <label class="key"><input type="radio" name="tf-${task.id}-${si}" ${st.ans==='F'?'checked':''}> F</label>
+        <button class="mini">✕</button>
+      </div>`);
+      const inp=row.querySelector('input[type=text]'); const [rP,rF]=row.querySelectorAll('input[type=radio]'); const rm=row.querySelector('.mini');
+      inp.oninput=()=> st.text=inp.value;
+      rP.onchange=()=> st.ans='P'; rF.onchange=()=> st.ans='F';
+      rm.onclick=()=>{ task.statements.splice(si,1); renderTasks(); };
+      wrap.appendChild(row);
+    });
+    const add=el(`<button class="mini" style="margin-top:4px">+ dodaj zdanie</button>`);
+    add.onclick=()=>{ task.statements.push({text:'',ans:null}); renderTasks(); };
+    wrap.appendChild(add);
+    body.appendChild(wrap);
+  }
+  if(task.type==='matching'){
+    const wrap = el(`<div><div class="hintline">Kolumna I (do przyporządkowania) — z opcjonalnym kluczem do kolumny II:</div></div>`);
+    task.left.forEach((L,li)=>{
+      const row = el(`<div class="opt-row">
+        <span class="let">${li+1}</span>
+        <input type="text" value="${esc(L.text)}" placeholder="Element ${li+1}">
+        <span class="key">→</span>
+        <select class="mini" style="padding:6px"></select>
+        <button class="mini">✕</button>
+      </div>`);
+      const inp=row.querySelector('input[type=text]'); const sel=row.querySelector('select'); const rm=row.querySelector('.mini:last-child');
+      sel.appendChild(el(`<option value="">klucz…</option>`));
+      task.right.forEach((R,ri)=>{ const lt=String.fromCharCode(65+ri); const o=el(`<option value="${lt}">${lt}</option>`); if(L.correct===lt)o.selected=true; sel.appendChild(o); });
+      inp.oninput=()=> L.text=inp.value;
+      sel.onchange=()=> L.correct=sel.value;
+      rm.onclick=()=>{ task.left.splice(li,1); renderTasks(); };
+      wrap.appendChild(row);
+    });
+    const addL=el(`<button class="mini">+ element (kol. I)</button>`);
+    addL.onclick=()=>{ task.left.push({text:'',correct:''}); renderTasks(); };
+    wrap.appendChild(addL);
+    wrap.appendChild(el(`<div class="hintline" style="margin-top:12px">Kolumna II (możliwości):</div>`));
+    task.right.forEach((R,ri)=>{
+      const lt=String.fromCharCode(65+ri);
+      const row=el(`<div class="opt-row"><span class="let">${lt}</span><input type="text" value="${esc(R)}" placeholder="Możliwość ${lt}"><button class="mini">✕</button></div>`);
+      const inp=row.querySelector('input'); const rm=row.querySelector('.mini');
+      inp.oninput=()=> task.right[ri]=inp.value;
+      rm.onclick=()=>{ task.right.splice(ri,1); renderTasks(); };
+      wrap.appendChild(row);
+    });
+    const addR=el(`<button class="mini">+ możliwość (kol. II)</button>`);
+    addR.onclick=()=>{ task.right.push(''); renderTasks(); };
+    wrap.appendChild(addR);
+    body.appendChild(wrap);
+  }
+  if(['open','gaps','essay','math'].includes(task.type)){
+    body.appendChild(linesField(task));
+  }
+  if(task.type==='math'){
+    const g=el(`<label style="display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--muted); margin-top:8px"><input type="checkbox" ${task.grid?'checked':''}> miejsce na obliczenia w kratkę</label>`);
+    g.querySelector('input').onchange=e=> task.grid=e.target.checked;
+    body.appendChild(g);
+  }
+  return card;
+}
+
+function linesField(task){
+  const isBox = (task.type==='essay'||task.type==='math');
+  const label = isBox ? 'Wysokość miejsca na odpowiedź (linie)' : 'Liczba linii na odpowiedź';
+  const w=el(`<label class="f" style="max-width:240px"><span>${label}</span><input type="number" min="0" step="1" value="${task.lines||0}"></label>`);
+  w.querySelector('input').oninput=e=> task.lines=parseInt(e.target.value)||0;
+  return w;
+}
+
+/* ============================================================
+   RENDER ARKUSZA (sheet)
+   ============================================================ */
+function richText(t){
+  // zachowaj $…$ dla MathJax, ale zabezpiecz HTML i złam wiersze
+  return esc(t).replace(/\n/g,'<br>');
+}
+function totalPoints(){ return state.tasks.reduce((s,t)=> s+(parseInt(t.points)||0),0); }
+
+function writeLines(n){
+  n = Math.max(0, n|0);
+  let s='<div class="writelines">';
+  for(let i=0;i<n;i++) s+='<div class="wl"></div>';
+  return s+'</div>';
+}
+
+function renderSheet(showKey){
+  const m=state.meta, sheet=document.getElementById('sheet');
+  const max=totalPoints();
+  let h='';
+  h+=`<div class="sub-line"><span>Przedmiot: ${esc(m.subject||'')}</span><span>${m.klasa?('Klasa '+esc(m.klasa)):''}</span></div>`;
+  h+=`<div class="sheet-headgrid">
+        <div class="titlecol">
+          <h1 class="worktype">${esc((m.workType||'Praca pisemna').toUpperCase())}</h1>
+          ${m.topic?`<div class="topic"><span class="lab">Temat:</span>${esc(m.topic)}</div>`:''}
+        </div>
+        <div class="gradebox">
+          <div class="pts"><span>Liczba punktów:</span> <b>____ / ${max}</b></div>
+          <div class="oc-lab">OCENA</div>
+          <div class="oc-space">•</div>
+        </div>
+      </div>`;
+  h+=`<div class="identity">
+        <div class="fld"><span class="lb">Imię i nazwisko:</span><span class="ln"></span></div>
+        <div class="fld"><span class="lb">Data:</span><span class="ln"></span></div>
+        ${m.duration?`<div class="fld"><span class="lb">Czas pracy:</span><span class="ln">${esc(m.duration)} min</span></div>`:''}
+        ${m.school?`<div class="fld"><span class="lb">Szkoła:</span><span class="ln">${esc(m.school)}</span></div>`:''}
+      </div>`;
+  if(m.instruction) h+=`<div class="instruction">${richText(m.instruction)}</div>`;
+  h+=`<hr class="sheet-rule">`;
+
+  state.tasks.forEach((t,i)=>{
+    const info=TYPES[t.type];
+    const lead = info.lead ? `<span class="lead"> ${esc(info.lead)}</span>` : '';
+    let main = `<div class="task-head">Zadanie ${i+1}.${lead}</div>`;
+    if(t.content) main += `<div class="task-body">${richText(t.content)}</div>`;
+
+    if(t.type==='source' && t.source){
+      main += `<div class="task-src">${richText(t.source)}${t.sourceLabel?`<div class="src-cap">${esc(t.sourceLabel)}</div>`:''}</div>`;
+    }
+    if(t.type==='image' && t.image){
+      main += `<img class="task-img" src="${t.image}">`;
+      if(t.caption) main += `<div class="task-src src-cap" style="border:0;text-align:center">${esc(t.caption)}</div>`;
+    }
+    if(t.type==='closed'){
+      t.options.forEach((o,oi)=>{
+        const lt=String.fromCharCode(65+oi);
+        const ok = showKey && t.correct===oi;
+        main += `<div class="opt ${ok?'correct':''}"><span class="lt">${lt}.</span>${richText(o)}${ok?' ✓':''}</div>`;
+      });
+    }
+    if(t.type==='truefalse'){
+      t.statements.forEach((st,si)=>{
+        const p = showKey && st.ans==='P', f = showKey && st.ans==='F';
+        main += `<div class="tf-row"><span class="st">${si+1}. ${richText(st.text)}</span><span class="pf"><span class="${p?'on':''}">P</span> / <span class="${f?'on':''}">F</span></span></div>`;
+      });
+    }
+    if(t.type==='matching'){
+      main += `<div class="match-wrap"><div class="col"><b>Kolumna I</b><ol>`;
+      t.left.forEach(L=> main+=`<li>${richText(L.text)} …….</li>`);
+      main += `</ol></div><div class="col"><b>Kolumna II</b><ul style="list-style:none; padding-left:0">`;
+      t.right.forEach((R,ri)=> main+=`<li>${String.fromCharCode(65+ri)}. ${richText(R)}</li>`);
+      main += `</ul></div></div>`;
+      if(showKey){
+        const key = t.left.map((L,li)=>`${li+1}–${L.correct||'?'}`).join(', ');
+        main += `<div class="match-key">Klucz: ${esc(key)}</div>`;
+      }
+    }
+    if(t.type==='math'){
+      main += `<div class="workbox ${t.grid?'grid':''}" style="min-height:${Math.max(30,(t.lines||6)*6)}mm"></div>`;
+    } else if(t.type==='essay'){
+      main += writeLines(t.lines||16);
+    } else if(['open','gaps','source','image'].includes(t.type)){
+      main += writeLines(t.lines||4);
+    }
+
+    const pmax = parseInt(t.points)||0;
+    h += `<div class="task">
+      <div class="task-main">${main}</div>
+      <div class="points-tag"><div class="bx">0–<b>${pmax}</b></div><div class="pp">${pmax===1?'punkt':(pmax>=5?'punktów':'punkty')}</div></div>
+    </div>`;
+  });
+
+  if(m.brudnopis){
+    h += `<div class="brudnopis"><div class="bl">BRUDNOPIS</div><div style="min-height:70mm"></div></div>`;
+  }
+  h += `<div class="sheet-foot">Arkusz przygotowany w Kreatorze prac pisemnych GAMIK · ${state.tasks.length} zad. · ${max} pkt</div>`;
+
+  sheet.innerHTML = h;
+  if(window.MathJax && MathJax.typesetPromise){ MathJax.typesetClear && MathJax.typesetClear([sheet]); MathJax.typesetPromise([sheet]).catch(()=>{}); }
+}
+
+/* ============================================================
+   Tryby: edycja / podgląd / druk
+   ============================================================ */
+function showPreview(){
+  document.body.classList.add('previewing');
+  document.getElementById('btn-edit').style.display='';
+  document.getElementById('btn-preview').style.display='none';
+  renderSheet(document.getElementById('chk-key').checked);
+  window.scrollTo(0,0);
+}
+function showEditor(){
+  document.body.classList.remove('previewing');
+  document.getElementById('btn-edit').style.display='none';
+  document.getElementById('btn-preview').style.display='';
+}
+document.getElementById('btn-preview').onclick = showPreview;
+document.getElementById('btn-edit').onclick = showEditor;
+document.getElementById('chk-key').onchange = ()=> renderSheet(document.getElementById('chk-key').checked);
+document.getElementById('btn-print').onclick = ()=>{
+  if(!state.tasks.length){ alert('Dodaj przynajmniej jedno zadanie.'); return; }
+  showPreview();
+  setTimeout(()=> window.print(), 350); // daj MathJaxowi chwilę
+};
+
+/* ---------- zapis / wczytanie pliku (JSON) ---------- */
+document.getElementById('btn-save').onclick = ()=>{
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  const name = (state.meta.topic || state.meta.workType || 'praca').replace(/[^a-z0-9ąćęłńóśźż _-]/gi,'').trim() || 'praca';
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '.gamik.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+document.getElementById('btn-load').onclick = ()=> document.getElementById('file-load').click();
+document.getElementById('file-load').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const obj=JSON.parse(r.result);
+    if(!obj.meta||!Array.isArray(obj.tasks)) throw new Error('Zły format');
+    state=obj; if(!state.meta.instruction) state.meta.instruction=DEFAULT_INSTRUCTION;
+    bindMeta(); renderTasks(); showEditor();
+  }catch(err){ alert('Nie udało się wczytać pliku: '+err.message); } };
+  r.readAsText(f);
+  e.target.value='';
+};
+
+/* ---------- keep subject synced with meta on load ---------- */
+document.getElementById('subject').addEventListener('change', e=>{ state.meta.subject=e.target.value; });
+
+/* ---------- boot ---------- */
+initMeta();
+bindMeta();
+renderTasks();
+</script>
+</body>
+</html>
