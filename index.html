@@ -123,6 +123,7 @@
   .g3{background:var(--warn-bg); color:#92400e; border-color:#f0dcc0}
   .g2{background:#fdeede; color:#9a4a08; border-color:#f3d8b8}
   .g1{background:var(--bad-bg); color:#991b1b; border-color:#f0cccc}
+  .g-neutral{background:#eef0f2; color:#3f4650; border-color:#d7dbe0}
   .g-pred{border-style:dashed !important; opacity:.95}
 
   .badge{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:999px}
@@ -188,6 +189,17 @@ const sb = CONFIGURED ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const DAYS = ['', 'Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota','Niedziela'];
 const CAT_LABEL = { regular:'Cząstkowe', predicted:'Przewidywane', final:'Końcowe' };
+const SUBCAT = {
+  sprawdzian:'Sprawdzian', kartkowka:'Kartkówka', egzamin:'Egzamin',
+  wypracowanie:'Wypracowanie', ustna:'Wypowiedź ustna', praca_domowa:'Praca domowa',
+  aktywnosc:'Aktywność', karta_pracy:'Karta pracy'
+};
+const SUBCAT_WEIGHT = {
+  sprawdzian:1, kartkowka:0.5, egzamin:1.5, wypracowanie:0.85,
+  ustna:0.6, praca_domowa:0.4, aktywnosc:0.2, karta_pracy:0.45
+};
+const EXAM_WEIGHT = 1.5;
+const fmtW = w => { const n=Number(w); return Number.isInteger(n)? String(n) : String(n).replace('.',','); };
 
 /* ---------- helpers ---------- */
 const root = document.getElementById('root');
@@ -225,10 +237,34 @@ function gradeClass(v){
   const m = String(v).match(/[1-6]/);
   return m ? 'g'+m[0] : 'g3';
 }
+function chipClass(g){
+  return (g.kind==='percent' || g.kind==='other') ? 'g-neutral' : gradeClass(g.value);
+}
+function chipTitle(g){
+  const parts=[];
+  if(g.description) parts.push(g.description);
+  if(g.category==='regular'){
+    if(g.kind==='percent') parts.push('Procentowa · waga 0');
+    else if(g.kind==='other') parts.push('Ocena inna · waga 0');
+    else {
+      if(g.subcategory && SUBCAT[g.subcategory]) parts.push(SUBCAT[g.subcategory]);
+      parts.push('waga '+fmtW(g.weight==null?1:g.weight));
+    }
+  }
+  parts.push(fmtDate(g.graded_on));
+  if(g.teacher?.full_name) parts.push(g.teacher.full_name);
+  return parts.join(' · ');
+}
 function weightedAvg(grades){
-  const reg = grades.filter(g=>g.category==='regular');
   let sum=0, w=0;
-  for(const g of reg){ const n=gradeToNumber(g.value); if(n!=null){ sum+=n*(g.weight||1); w+=(g.weight||1);} }
+  for(const g of grades){
+    if(g.category!=='regular') continue;          // przewidywane/końcowe nie liczą się
+    if(g.kind && g.kind!=='numeric') continue;     // procentowe/inne nie liczą się
+    const n=gradeToNumber(g.value); if(n==null) continue;
+    const wt = (g.weight==null?1:Number(g.weight));
+    if(!(wt>0)) continue;                           // waga 0 nie wpływa na średnią
+    sum += n*wt; w += wt;
+  }
   return w ? (sum/w) : null;
 }
 
@@ -772,8 +808,8 @@ function renderGradeBook(holder, subs, grades, opt){
       const line = el(`<div class="cat-line"><span class="lab">${CAT_LABEL[cat]}</span><span class="chips"></span></div>`);
       const chips = line.querySelector('.chips');
       items.forEach(g=>{
-        const chip = el(`<span class="g ${gradeClass(g.value)} ${cat==='predicted'?'g-pred':''}"
-          title="${esc(g.description||'')}${g.weight&&cat==='regular'?` · waga ${g.weight}`:''} · ${fmtDate(g.graded_on)}${g.teacher?.full_name?` · ${esc(g.teacher.full_name)}`:''}"
+        const chip = el(`<span class="g ${chipClass(g)} ${cat==='predicted'?'g-pred':''}"
+          title="${esc(chipTitle(g))}"
           style="cursor:${opt.editable?'pointer':'default'}">${esc(g.value)}</span>`);
         if(opt.editable){
           chip.onclick=()=> openGradeModal({grade:g, studentId:opt.studentId, students:opt.students, subs:opt.addSubs||subs, onSave:opt.reload});
@@ -788,51 +824,162 @@ function renderGradeBook(holder, subs, grades, opt){
 
 function openGradeModal({grade, studentId, students, subs, onSave}){
   const editing = !!grade;
+  const todayISO = new Date().toISOString().slice(0,10);
+  const clamp = (x,a,b)=> isNaN(x)? a : Math.min(b, Math.max(a,x));
   const opts = arr => arr.map(x=>`<option value="${x.id}">${esc(x.full_name||x.name)}</option>`).join('');
+  const subOpts = Object.entries(SUBCAT).map(([k,v])=>`<option value="${k}">${esc(v)} (waga ${fmtW(SUBCAT_WEIGHT[k])})</option>`).join('');
+
   modal(editing?'Edytuj ocenę':'Wystaw ocenę', `
     <div class="stack">
       <label class="fld">Uczeń<select id="gm-student" ${editing?'disabled':''}>${opts(students)}</select></label>
       <label class="fld">Przedmiot<select id="gm-subject">${opts(subs)}</select></label>
-      <div class="row">
-        <label class="fld">Ocena<input id="gm-value" placeholder="np. 5, 4+, 3-" value="${esc(grade?.value||'')}"></label>
-        <label class="fld">Rodzaj<select id="gm-cat">
-          <option value="regular">Cząstkowa</option>
-          <option value="predicted">Przewidywana</option>
-          <option value="final">Końcowa</option>
+      <label class="fld">Rodzaj wpisu<select id="gm-cat">
+        <option value="regular">Cząstkowa</option>
+        <option value="predicted">Przewidywana</option>
+        <option value="final">Końcowa</option>
+      </select></label>
+
+      <div id="gm-reg" class="stack" style="gap:14px">
+        <label class="fld">Typ oceny cząstkowej<select id="gm-kind">
+          <option value="numeric">Zwykła (cyfrowa)</option>
+          <option value="percent">Procentowa</option>
+          <option value="other">Inna (+, -, np, nb…)</option>
         </select></label>
+        <label class="fld" id="gm-sub-wrap">Kategoria<select id="gm-sub">${subOpts}</select></label>
+      </div>
+
+      <div id="gm-chips" class="flexbar" style="display:none; gap:6px; align-items:center">
+        <span class="tiny muted">Szybki wybór:</span>
+      </div>
+
+      <div class="row">
+        <label class="fld"><span id="gm-value-txt">Ocena</span><input id="gm-value" placeholder="np. 5, 4+, 3-" value="${esc(grade?.value||'')}"></label>
+        <label class="fld" id="gm-weight-lab">Waga<input id="gm-weight" type="number" min="0" max="1" step="0.05" value="${grade?.weight??1}"></label>
       </div>
       <div class="row">
-        <label class="fld">Waga<input id="gm-weight" type="number" min="1" max="10" value="${grade?.weight||1}"></label>
-        <label class="fld">Data<input id="gm-date" type="date" value="${grade?.graded_on || new Date().toISOString().slice(0,10)}"></label>
+        <label class="fld">Data<input id="gm-date" type="date" value="${grade?.graded_on || todayISO}"></label>
+        <label class="fld">Opis (opcjonalnie)<input id="gm-desc" placeholder="np. dział: ułamki" value="${esc(grade?.description||'')}"></label>
       </div>
-      <label class="fld">Opis (opcjonalnie)<input id="gm-desc" placeholder="np. Sprawdzian – ułamki" value="${esc(grade?.description||'')}"></label>
     </div>
   `, async (m)=>{
+    const cat = m.querySelector('#gm-cat').value;
+    const valEl = m.querySelector('#gm-value');
+    let value, kind=null, subcategory=null, weight=0;
+
+    if(cat!=='regular'){
+      value = valEl.value.trim();
+    } else {
+      kind = m.querySelector('#gm-kind').value;
+      if(kind==='numeric'){
+        subcategory = m.querySelector('#gm-sub').value;
+        value = valEl.value.trim();
+        weight = subcategory==='egzamin' ? EXAM_WEIGHT : clamp(parseFloat(m.querySelector('#gm-weight').value), 0, 1);
+      } else if(kind==='percent'){
+        const raw = valEl.value.trim().replace(/[^0-9.,]/g,'').replace(',','.');
+        if(raw==='') { toast('Podaj wynik procentowy','err'); return false; }
+        value = raw + '%'; weight = 0;
+      } else { // other
+        value = valEl.value.trim(); weight = 0;
+      }
+    }
+    if(!value){ toast('Podaj ocenę / wartość','err'); return false; }
+
     const payload = {
-      student_id: editing? grade.student_id : (m.querySelector('#gm-student').value),
+      student_id: editing? grade.student_id : m.querySelector('#gm-student').value,
       subject_id: m.querySelector('#gm-subject').value,
-      value: m.querySelector('#gm-value').value.trim(),
-      category: m.querySelector('#gm-cat').value,
-      weight: parseInt(m.querySelector('#gm-weight').value)||1,
+      value, category:cat, kind, subcategory, weight,
       graded_on: m.querySelector('#gm-date').value,
       description: m.querySelector('#gm-desc').value.trim() || null,
       teacher_id: profile.id,
     };
-    if(!payload.value){ toast('Podaj ocenę','err'); return false; }
     if(editing){ await sb.from('grades').update(payload).eq('id',grade.id); }
     else { await sb.from('grades').insert(payload); }
-    toast('Zapisano');
-    onSave && onSave();
-    return true;
-  }, editing ? async (m)=>{ // delete button
+    toast('Zapisano'); onSave && onSave(); return true;
+  }, editing ? async ()=>{
     if(confirm('Usunąć tę ocenę?')){ await sb.from('grades').delete().eq('id',grade.id); toast('Usunięto'); onSave&&onSave(); closeModal(); }
   } : null);
 
-  // preselect
+  // --- refs ---
+  const catSel = document.querySelector('#gm-cat');
+  const kindSel = document.querySelector('#gm-kind');
+  const subSel = document.querySelector('#gm-sub');
+  const subWrap = document.querySelector('#gm-sub-wrap');
+  const regBox = document.querySelector('#gm-reg');
+  const chipsBox = document.querySelector('#gm-chips');
+  const valueInp = document.querySelector('#gm-value');
+  const valueTxt = document.querySelector('#gm-value-txt');
+  const weightLab = document.querySelector('#gm-weight-lab');
+  const weightInp = document.querySelector('#gm-weight');
+
+  ['+','-','np','nb'].forEach(sym=>{
+    const b = el(`<button class="btn ghost sm" type="button">${esc(sym)}</button>`);
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=()=>{ valueInp.value=sym; };
+    chipsBox.appendChild(b);
+  });
+
+  function applySubDefault(){
+    const sub = subSel.value;
+    weightInp.value = sub==='egzamin' ? EXAM_WEIGHT : SUBCAT_WEIGHT[sub];
+  }
+  function update(){
+    const cat = catSel.value, isReg = cat==='regular', kind = kindSel.value;
+    regBox.style.display = isReg ? '' : 'none';
+    subWrap.style.display = (isReg && kind==='numeric') ? '' : 'none';
+    chipsBox.style.display = (isReg && kind==='other') ? 'flex' : 'none';
+
+    // etykieta i typ pola wartości
+    if(isReg && kind==='percent'){
+      valueTxt.textContent='Wynik (%)'; valueInp.type='number';
+      valueInp.min='0'; valueInp.max='100'; valueInp.step='1'; valueInp.placeholder='np. 85';
+    } else {
+      valueInp.type='text';
+      valueTxt.textContent = (isReg && kind==='other') ? 'Wartość' : 'Ocena';
+      valueInp.placeholder = (isReg && kind==='other') ? 'np. +, -, np, nb' : 'np. 5, 4+, 3-';
+    }
+
+    // waga
+    if(!isReg){                          // przewidywana/końcowa — waga nieistotna
+      weightLab.style.display='none'; weightInp.value=0; weightInp.disabled=true;
+    } else if(kind==='percent' || kind==='other'){
+      weightLab.style.display=''; weightInp.value=0; weightInp.disabled=true; weightInp.title='Ten typ ma zawsze wagę 0';
+    } else {                             // numeryczna
+      weightLab.style.display='';
+      if(subSel.value==='egzamin'){
+        weightInp.value=EXAM_WEIGHT; weightInp.disabled=true; weightInp.title='Egzamin ma obowiązkowo wagę 1,5';
+      } else {
+        weightInp.disabled=false; weightInp.title=''; weightInp.min='0'; weightInp.max='1'; weightInp.step='0.05';
+      }
+    }
+  }
+
+  subSel.onchange = ()=>{ applySubDefault(); update(); };
+  kindSel.onchange = ()=>{ if(kindSel.value==='numeric') applySubDefault(); update(); };
+  catSel.onchange = ()=>{ if(catSel.value==='regular' && kindSel.value==='numeric') applySubDefault(); update(); };
+
+  // --- preselect / init ---
   if(!editing) document.querySelector('#gm-student').value = studentId;
-  else { document.querySelector('#gm-student').value = grade.student_id; }
+  else document.querySelector('#gm-student').value = grade.student_id;
   document.querySelector('#gm-subject').value = grade?.subject_id || subs[0]?.id;
-  document.querySelector('#gm-cat').value = grade?.category || 'regular';
+
+  catSel.value = grade?.category || 'regular';
+  if(catSel.value==='regular'){
+    kindSel.value = grade?.kind || 'numeric';
+    if(kindSel.value==='numeric') subSel.value = grade?.subcategory || 'sprawdzian';
+  }
+  update();
+  if(editing){
+    if(catSel.value==='regular' && grade.kind==='percent'){
+      valueInp.value = String(grade.value||'').replace(/[^0-9.,]/g,'');
+    } else {
+      valueInp.value = grade.value || '';
+    }
+    if(catSel.value==='regular' && (grade.kind==='numeric' || !grade.kind)){
+      weightInp.value = (grade.subcategory==='egzamin') ? EXAM_WEIGHT : (grade.weight??1);
+    }
+  } else if(catSel.value==='regular' && kindSel.value==='numeric'){
+    applySubDefault();
+  }
 }
 
 /* ============================================================
