@@ -373,3 +373,10 @@ alter table public.grades add column if not exists kind text;
 alter table public.grades add column if not exists subcategory text;
 alter table public.grades alter column weight type numeric using weight::numeric;
 alter table public.grades alter column weight set default 1;
+
+-- ============================================================
+-- AKTUALIZACJA v4: archiwum zadań domowych i sprawdzianów
+-- (bezpieczne do ponownego uruchomienia)
+-- ============================================================
+alter table public.homework add column if not exists archived boolean not null default false;
+alter table public.tests    add column if not exists archived boolean not null default false;

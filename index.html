@@ -125,6 +125,10 @@
   .g1{background:var(--bad-bg); color:#991b1b; border-color:#f0cccc}
   .g-neutral{background:#eef0f2; color:#3f4650; border-color:#d7dbe0}
   .g-pred{border-style:dashed !important; opacity:.95}
+  .seg{display:inline-flex; gap:2px; background:var(--bg); padding:3px; border-radius:999px; margin-bottom:16px}
+  .seg button{border:0; background:transparent; padding:7px 16px; border-radius:999px; font-weight:600; font-size:13px; color:var(--muted); cursor:pointer}
+  .seg button.active{background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .card-archived{opacity:.72}
 
   .badge{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:999px}
   .b-pending{background:var(--warn-bg); color:var(--warn)}
@@ -1186,11 +1190,13 @@ async function tabAssignments(){
 /* ============================================================
    Wspólny szkielet zakładki nauczyciela/admina z wyborem ucznia
    ============================================================ */
-async function teacherResourceTab({title, table, addLabel, openModal, card, selectStr}){
+async function teacherResourceTab({title, table, addLabel, openModal, card, selectStr, archivable}){
   const scope = await loadScope();
   const v = view(); v.innerHTML='';
   v.appendChild(pageHead('Dziennik', title));
   if(!scope.students.length){ v.appendChild(scopeEmpty()); return; }
+
+  let showArchived = false;
 
   const picker = el(`<section class="panel"><div class="row" style="align-items:flex-end">
     <label class="fld">Uczeń<select class="rt-student"></select></label>
@@ -1199,14 +1205,33 @@ async function teacherResourceTab({title, table, addLabel, openModal, card, sele
   const sSel = picker.querySelector('.rt-student');
   scope.students.forEach(s=> sSel.appendChild(el(`<option value="${s.id}">${esc(s.full_name)}</option>`)));
   v.appendChild(picker);
+
+  if(archivable){
+    const seg = el(`<div class="seg">
+      <button data-a="0" class="active">Aktualne</button>
+      <button data-a="1">Zarchiwizowane</button>
+    </div>`);
+    seg.querySelectorAll('button').forEach(b=> b.onclick=()=>{
+      showArchived = b.dataset.a==='1';
+      seg.querySelectorAll('button').forEach(x=> x.classList.toggle('active', x===b));
+      load();
+    });
+    v.appendChild(seg);
+  }
+
   const holder = el(`<div></div>`); v.appendChild(holder);
 
   const load = async ()=>{
     holder.innerHTML = `<div class="list-empty">Wczytywanie…</div>`;
-    const { data } = await sb.from(table).select(selectStr).eq('student_id', sSel.value).order('created_at',{ascending:false});
+    let q = sb.from(table).select(selectStr).eq('student_id', sSel.value);
+    if(archivable) q = q.eq('archived', showArchived);
+    const { data } = await q.order('created_at',{ascending:false});
     holder.innerHTML='';
-    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak wpisów dla tego ucznia.</div></div>`)); return; }
-    data.forEach(item=> holder.appendChild(card(item, {editable:true, reload:load, subsForEdit:scope.subjectsFor(sSel.value), students:scope.students})));
+    if(!data || !data.length){
+      holder.appendChild(el(`<div class="panel"><div class="list-empty">${archivable&&showArchived?'Brak zarchiwizowanych wpisów.':'Brak wpisów dla tego ucznia.'}</div></div>`));
+      return;
+    }
+    data.forEach(item=> holder.appendChild(card(item, {editable:true, archivable, reload:load, subsForEdit:scope.subjectsFor(sSel.value), students:scope.students})));
   };
   sSel.onchange = load;
   picker.querySelector('.rt-add').onclick = ()=>{
@@ -1218,23 +1243,34 @@ async function teacherResourceTab({title, table, addLabel, openModal, card, sele
 }
 
 /* Widok ucznia (tylko odczyt + przesyłanie prac dla zadań) */
-async function studentResourceList(kind){
+async function studentResourceList(kind, showArchived=false){
   const v = view(); v.innerHTML='';
   const titleMap = {homework:'Zadania domowe', tests:'Sprawdziany', notes:'Notatki'};
   v.appendChild(pageHead('Twój dziennik', titleMap[kind]));
+
+  const archivable = (kind==='homework' || kind==='tests');
+  if(archivable){
+    const seg = el(`<div class="seg">
+      <button data-a="0" class="${showArchived?'':'active'}">Aktualne</button>
+      <button data-a="1" class="${showArchived?'active':''}">Zarchiwizowane</button>
+    </div>`);
+    seg.querySelectorAll('button').forEach(b=> b.onclick=()=> studentResourceList(kind, b.dataset.a==='1'));
+    v.appendChild(seg);
+  }
+
   const holder = el(`<div></div>`); v.appendChild(holder);
-  const reload = ()=> studentResourceList(kind);
+  const reload = ()=> studentResourceList(kind, showArchived);
 
   if(kind==='homework'){
     const { data } = await sb.from('homework')
       .select('*, subject:subjects(name), submissions:homework_submissions(*)')
-      .eq('student_id', profile.id).order('created_at',{ascending:false});
-    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak zadań domowych.</div></div>`)); return; }
+      .eq('student_id', profile.id).eq('archived', showArchived).order('created_at',{ascending:false});
+    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">${showArchived?'Brak zarchiwizowanych zadań.':'Brak zadań domowych.'}</div></div>`)); return; }
     data.forEach(hw=> holder.appendChild(homeworkCard(hw, {editable:false, isStudent:true, reload})));
   } else if(kind==='tests'){
     const { data } = await sb.from('tests').select('*, subject:subjects(name)')
-      .eq('student_id', profile.id).order('created_at',{ascending:false});
-    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">Brak sprawdzianów.</div></div>`)); return; }
+      .eq('student_id', profile.id).eq('archived', showArchived).order('created_at',{ascending:false});
+    if(!data || !data.length){ holder.appendChild(el(`<div class="panel"><div class="list-empty">${showArchived?'Brak zarchiwizowanych sprawdzianów.':'Brak sprawdzianów.'}</div></div>`)); return; }
     data.forEach(tt=> holder.appendChild(testCard(tt, {editable:false})));
   } else {
     const { data } = await sb.from('notes').select('*, subject:subjects(name)')
@@ -1251,7 +1287,7 @@ async function tabHomework(){
   if(profile.role==='student') return studentResourceList('homework');
   return teacherResourceTab({
     title:'Zadania domowe', table:'homework', addLabel:'+ Zadaj pracę',
-    openModal:openHomeworkModal, card:homeworkCard,
+    openModal:openHomeworkModal, card:homeworkCard, archivable:true,
     selectStr:'*, subject:subjects(name), submissions:homework_submissions(*)'
   });
 }
@@ -1286,12 +1322,17 @@ function homeworkCard(hw, opt){
     card.appendChild(bar);
   } else if(opt.editable){
     const bar = el(`<div class="flexbar" style="margin-top:12px"></div>`);
-    bar.append(
-      btn('Edytuj', ()=> openHomeworkModal({hw, students:opt.students, subs:opt.subsForEdit, onSave:opt.reload}),'ghost sm'),
-      btn('Usuń', async ()=>{ if(confirm('Usunąć zadanie?')){ await sb.from('homework').delete().eq('id',hw.id); toast('Usunięto'); opt.reload&&opt.reload(); } },'danger sm')
-    );
+    bar.append(btn('Edytuj', ()=> openHomeworkModal({hw, students:opt.students, subs:opt.subsForEdit, onSave:opt.reload}),'ghost sm'));
+    if(opt.archivable){
+      bar.append(btn(hw.archived?'Przywróć':'Archiwizuj', async ()=>{
+        await sb.from('homework').update({archived:!hw.archived}).eq('id',hw.id);
+        toast(hw.archived?'Przywrócono':'Zarchiwizowano'); opt.reload&&opt.reload();
+      },'ghost sm'));
+    }
+    bar.append(btn('Usuń', async ()=>{ if(confirm('Usunąć zadanie?')){ await sb.from('homework').delete().eq('id',hw.id); toast('Usunięto'); opt.reload&&opt.reload(); } },'danger sm'));
     card.appendChild(bar);
   }
+  if(hw.archived) card.classList.add('card-archived');
   return card;
 }
 function openHomeworkModal({studentId, students, subs, hw, onSave}){
@@ -1353,7 +1394,7 @@ async function tabTests(){
   if(profile.role==='student') return studentResourceList('tests');
   return teacherResourceTab({
     title:'Sprawdziany', table:'tests', addLabel:'+ Dodaj sprawdzian',
-    openModal:openTestModal, card:testCard, selectStr:'*, subject:subjects(name)'
+    openModal:openTestModal, card:testCard, archivable:true, selectStr:'*, subject:subjects(name)'
   });
 }
 function testCard(tt, opt){
@@ -1371,12 +1412,17 @@ function testCard(tt, opt){
   }
   if(opt.editable){
     const bar = el(`<div class="flexbar" style="margin-top:12px"></div>`);
-    bar.append(
-      btn('Edytuj', ()=> openTestModal({tt, students:opt.students, subs:opt.subsForEdit, onSave:opt.reload}),'ghost sm'),
-      btn('Usuń', async ()=>{ if(confirm('Usunąć sprawdzian?')){ await sb.from('tests').delete().eq('id',tt.id); toast('Usunięto'); opt.reload&&opt.reload(); } },'danger sm')
-    );
+    bar.append(btn('Edytuj', ()=> openTestModal({tt, students:opt.students, subs:opt.subsForEdit, onSave:opt.reload}),'ghost sm'));
+    if(opt.archivable){
+      bar.append(btn(tt.archived?'Przywróć':'Archiwizuj', async ()=>{
+        await sb.from('tests').update({archived:!tt.archived}).eq('id',tt.id);
+        toast(tt.archived?'Przywrócono':'Zarchiwizowano'); opt.reload&&opt.reload();
+      },'ghost sm'));
+    }
+    bar.append(btn('Usuń', async ()=>{ if(confirm('Usunąć sprawdzian?')){ await sb.from('tests').delete().eq('id',tt.id); toast('Usunięto'); opt.reload&&opt.reload(); } },'danger sm'));
     card.appendChild(bar);
   }
+  if(tt.archived) card.classList.add('card-archived');
   return card;
 }
 function openTestModal({studentId, students, subs, tt, onSave}){
