@@ -81,6 +81,15 @@
   .hintline{font-size:12px; color:var(--muted-2); margin-top:6px}
   .imgprev{max-width:220px; max-height:150px; border:1px solid var(--line); border-radius:8px; margin-top:8px; display:block}
   .empty{text-align:center; color:var(--muted-2); padding:34px; border:1px dashed var(--line-2); border-radius:var(--radius); background:#fff}
+  .block-sub{margin-top:12px; padding:12px; border:1px dashed var(--line-2); border-radius:10px; background:#fbfcfd}
+  .mat{border:1px solid var(--line); border-radius:8px; padding:10px; margin:8px 0; background:#fff}
+  .mat-h{display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px}
+  .sub-card{border:1px solid var(--line); border-radius:9px; margin:8px 0; background:#fff; overflow:hidden}
+  .sub-chead{display:flex; align-items:center; gap:8px; padding:8px 10px; background:#f3f5f7; border-bottom:1px solid var(--line)}
+  .sub-n{width:22px; height:22px; border-radius:6px; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:700; font-size:12px; flex:0 0 auto}
+  .sub-type{border:1px solid var(--line-2); border-radius:6px; padding:5px 8px; font-size:13px; font-weight:600; background:#fff}
+  .sub-body{padding:10px}
+  .sub-palette{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
 
   /* ============ ARKUSZ ============ */
   .stage{display:none}
@@ -157,6 +166,13 @@
   .workbox.grid{background-image:linear-gradient(#e3e3e3 1px,transparent 1px),linear-gradient(90deg,#e3e3e3 1px,transparent 1px); background-size:5mm 5mm}
   .scratch{margin-top:10px}
   .scratch .sl{font-size:9pt; font-weight:700; letter-spacing:.08em; color:#666; text-transform:uppercase; margin-bottom:4px}
+  .subtask{margin-top:12px; padding-left:14px; border-left:2px solid var(--ac-soft)}
+  .sub-head{display:flex; align-items:baseline; gap:9px; margin-bottom:2px}
+  .sub-no{font-weight:700; font-size:11.5pt}
+  .rz-lab{font-weight:600; margin-top:6px}
+  .task-fig{margin:8px 0}
+  .task-fig figcaption{margin-top:4px}
+  .src-no{font-weight:700; font-size:9.5pt; color:#444; margin-bottom:4px}
   .t-pts-exam{margin-top:2px}
 
   .brudnopis{margin-top:16px; border-top:2px solid var(--ac); padding-top:8px}
@@ -243,6 +259,8 @@ const TYPES = {
   essay:      {label:'Wypracowanie',            icon:'¶'},
   math_closed:{label:'Matematyczne — zamknięte',icon:'∑·ABC'},
   math_open:  {label:'Matematyczne — otwarte',  icon:'∑·▦'},
+  rozstrzygniecie:{label:'Rozstrzygnięcie + uzasadnienie', icon:'R/U'},
+  divided:    {label:'Zadanie podzielone (5.1, 5.2…)', icon:'⊞'},
 };
 const WORKTYPES = {
   test: ['Kartkówka','Sprawdzian'],
@@ -260,12 +278,23 @@ function newTask(type){
   if(type==='matching')    return {...b, left:[{text:'',correct:''}], right:['','']};
   if(type==='gaps')        return {...b, lines:2};
   if(type==='open')        return {...b, lines:4};
-  if(type==='source')      return {...b, source:'', sourceLabel:'Źródło', lines:5};
-  if(type==='image')       return {...b, image:null, caption:'', lines:5};
+  if(type==='source')      return {...b, sources:[{label:'Źródło',text:''}], images:[], lines:5};
+  if(type==='image')       return {...b, sources:[], images:[{data:null,caption:''}], lines:5};
+  if(type==='rozstrzygniecie') return {...b, sources:[], images:[], answer:'', lines:4};
+  if(type==='divided')     return {...b, sources:[], images:[], subtasks:[]};
   if(type==='essay')       return {...b, points:15, lines:18};
   if(type==='math_closed') return {...b, points:1, options:['','','',''], correct:null, scratchmm:45};
   if(type==='math_open')   return {...b, points:6, heightmm:200, fullpage:true};
   return b;
+}
+function newSub(type){
+  const s={ id:uid(), type, content:'', points:1 };
+  if(type==='closed'||type==='math_closed'){ s.options=['','','','']; s.correct=null; if(type==='math_closed') s.scratchmm=40; }
+  if(type==='truefalse') s.statements=[{text:'',ans:null},{text:'',ans:null}];
+  if(type==='matching'){ s.left=[{text:'',correct:''}]; s.right=['','']; }
+  if(type==='rozstrzygniecie'){ s.answer=''; s.lines=3; }
+  if(type==='gaps'||type==='open') s.lines=3;
+  return s;
 }
 
 function initMeta(){
@@ -356,7 +385,7 @@ function fieldInput(task,key,opts,area){
   const inp=w.querySelector(area?'textarea':'input'); if(opts.placeholder) inp.placeholder=opts.placeholder;
   inp.oninput=()=> task[key]=inp.value; return w;
 }
-function linesField(task,key,label,max){
+function linesField(task,key,label){
   const w=el(`<label class="f" style="max-width:260px"><span>${esc(label)}</span><input type="number" min="0" step="1" value="${task[key]||0}"></label>`);
   w.querySelector('input').oninput=e=> task[key]=parseInt(e.target.value)||0; return w;
 }
@@ -374,8 +403,102 @@ function optionsEditor(task){
     wrap.appendChild(row);
   });
   const add=el(`<button class="mini" style="margin-top:4px">+ dodaj odpowiedź</button>`);
-  add.onclick=()=>{ task.options.push(''); renderTasks(); }; wrap.appendChild(add);
+  add.onclick=()=>{ task.options.push(''); renderTasks(); }; wrap.appendChild(add); return wrap;
+}
+function tfEditor(task){
+  const wrap=el(`<div><div class="hintline">Zdania do oceny (P/F):</div></div>`);
+  task.statements.forEach((st,si)=>{
+    const row=el(`<div class="opt-row"><span class="let">${si+1}</span>
+      <input type="text" value="${esc(st.text)}" placeholder="Treść zdania ${si+1}">
+      <label class="key"><input type="radio" name="tf-${task.id}-${si}" ${st.ans==='P'?'checked':''}> P</label>
+      <label class="key"><input type="radio" name="tf-${task.id}-${si}" ${st.ans==='F'?'checked':''}> F</label>
+      <button class="mini">✕</button></div>`);
+    row.querySelector('input[type=text]').oninput=e=> st.text=e.target.value;
+    const rs=row.querySelectorAll('input[type=radio]'); rs[0].onchange=()=>st.ans='P'; rs[1].onchange=()=>st.ans='F';
+    row.querySelector('.mini').onclick=()=>{ task.statements.splice(si,1); renderTasks(); };
+    wrap.appendChild(row);
+  });
+  const add=el(`<button class="mini" style="margin-top:4px">+ dodaj zdanie</button>`); add.onclick=()=>{ task.statements.push({text:'',ans:null}); renderTasks(); }; wrap.appendChild(add); return wrap;
+}
+function matchingEditor(task){
+  const wrap=el(`<div><div class="hintline">Kolumna I (z opcjonalnym kluczem):</div></div>`);
+  task.left.forEach((Lx,li)=>{
+    const row=el(`<div class="opt-row"><span class="let">${li+1}</span>
+      <input type="text" value="${esc(Lx.text)}" placeholder="Element ${li+1}">
+      <span class="key">→</span><select class="mini" style="padding:6px"></select><button class="mini">✕</button></div>`);
+    const sel=row.querySelector('select'); sel.appendChild(el(`<option value="">klucz…</option>`));
+    task.right.forEach((R,ri)=>{ const lt=String.fromCharCode(65+ri); const o=el(`<option value="${lt}">${lt}</option>`); if(Lx.correct===lt)o.selected=true; sel.appendChild(o); });
+    row.querySelector('input').oninput=e=> Lx.text=e.target.value; sel.onchange=()=> Lx.correct=sel.value;
+    row.querySelector('.mini:last-child').onclick=()=>{ task.left.splice(li,1); renderTasks(); };
+    wrap.appendChild(row);
+  });
+  const addL=el(`<button class="mini">+ element (kol. I)</button>`); addL.onclick=()=>{ task.left.push({text:'',correct:''}); renderTasks(); }; wrap.appendChild(addL);
+  wrap.appendChild(el(`<div class="hintline" style="margin-top:12px">Kolumna II (możliwości):</div>`));
+  task.right.forEach((R,ri)=>{
+    const lt=String.fromCharCode(65+ri);
+    const row=el(`<div class="opt-row"><span class="let">${lt}</span><input type="text" value="${esc(R)}" placeholder="Możliwość ${lt}"><button class="mini">✕</button></div>`);
+    row.querySelector('input').oninput=e=> task.right[ri]=e.target.value;
+    row.querySelector('.mini').onclick=()=>{ task.right.splice(ri,1); renderTasks(); };
+    wrap.appendChild(row);
+  });
+  const addR=el(`<button class="mini">+ możliwość (kol. II)</button>`); addR.onclick=()=>{ task.right.push(''); renderTasks(); }; wrap.appendChild(addR); return wrap;
+}
+function materialsEditor(item){
+  item.sources ||= []; item.images ||= [];
+  const wrap=el(`<div class="block-sub"><div class="hintline" style="margin-top:0">Materiały źródłowe — możesz dodać kilka źródeł i/lub ilustracji:</div></div>`);
+  item.sources.forEach((s,si)=>{
+    const box=el(`<div class="mat"><div class="mat-h"><span>Źródło ${si+1}</span><button class="mini">usuń</button></div></div>`);
+    box.querySelector('.mini').onclick=()=>{ item.sources.splice(si,1); renderTasks(); };
+    box.appendChild(fieldInput(s,'label',{label:'Podpis źródła', placeholder:'np. Konstytucja RP, art. 2'}, false));
+    box.appendChild(fieldInput(s,'text',{label:'Treść źródła', placeholder:'Wklej fragment źródła…'}, true));
+    wrap.appendChild(box);
+  });
+  const addS=el(`<button class="mini">+ dodaj źródło</button>`); addS.onclick=()=>{ item.sources.push({label:'Źródło',text:''}); renderTasks(); }; wrap.appendChild(addS);
+  item.images.forEach((im,ii)=>{
+    const box=el(`<div class="mat"><div class="mat-h"><span>Ilustracja ${ii+1}</span><button class="mini">usuń</button></div></div>`);
+    box.querySelector('.mini').onclick=()=>{ item.images.splice(ii,1); renderTasks(); };
+    const up=el(`<label class="f full">Plik graficzny<input type="file" accept="image/*"></label>`);
+    up.querySelector('input').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ im.data=r.result; renderTasks(); }; r.readAsDataURL(f); };
+    box.appendChild(up);
+    if(im.data) box.appendChild(el(`<img class="imgprev" src="${im.data}">`));
+    box.appendChild(fieldInput(im,'caption',{label:'Podpis ilustracji', placeholder:'np. Mapa Europy 1939 r.'}, false));
+    wrap.appendChild(box);
+  });
+  const addI=el(`<button class="mini" style="margin-left:8px">+ dodaj ilustrację</button>`); addI.onclick=()=>{ item.images.push({data:null,caption:''}); renderTasks(); }; wrap.appendChild(addI);
   return wrap;
+}
+function typeFieldsEditor(item, body){
+  const t=item.type;
+  if(t==='closed'||t==='math_closed') body.appendChild(optionsEditor(item));
+  if(t==='math_closed') body.appendChild(linesField(item,'scratchmm','Wysokość brudnopisu (mm)'));
+  if(t==='truefalse') body.appendChild(tfEditor(item));
+  if(t==='matching') body.appendChild(matchingEditor(item));
+  if(t==='rozstrzygniecie'){ body.appendChild(fieldInput(item,'answer',{label:'Poprawne rozstrzygnięcie (klucz, opcjonalnie)', placeholder:'np. Tak / Nie'}, false)); body.appendChild(linesField(item,'lines','Liczba linii uzasadnienia')); }
+  if(t==='open'||t==='gaps') body.appendChild(linesField(item,'lines','Liczba linii na odpowiedź'));
+  if(t==='essay') body.appendChild(linesField(item,'lines','Liczba linii na wypracowanie'));
+  if(t==='source'||t==='image') body.appendChild(linesField(item,'lines','Liczba linii na odpowiedź'));
+  if(t==='math_open'){ body.appendChild(linesField(item,'heightmm','Wysokość kratownicy (mm)')); const g=el(`<label style="display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--muted); margin-top:8px"><input type="checkbox" ${item.fullpage?'checked':''}> zadanie na osobnej stronie</label>`); g.querySelector('input').onchange=e=> item.fullpage=e.target.checked; body.appendChild(g); }
+}
+const SUBTYPES=[['closed','Zamknięte'],['truefalse','Prawda/Fałsz'],['matching','Na dobieranie'],['gaps','Luki'],['open','Otwarte'],['rozstrzygniecie','Rozstrzygnięcie'],['math_closed','Mat. zamknięte']];
+function subEditor(parent, sub, si){
+  const card=el(`<div class="sub-card">
+    <div class="sub-chead"><span class="sub-n">${si+1}</span>
+      <select class="sub-type"></select><span class="grow"></span>
+      <span class="tc-pts">pkt <input type="number" min="0" step="1" value="${sub.points}"></span>
+      <button class="btn icon" title="W górę">↑</button><button class="btn icon" title="W dół">↓</button><button class="btn danger sm">Usuń</button>
+    </div><div class="sub-body"></div></div>`);
+  const sel=card.querySelector('.sub-type');
+  SUBTYPES.forEach(([k,lab])=>{ const o=el(`<option value="${k}">${esc(lab)}</option>`); if(sub.type===k)o.selected=true; sel.appendChild(o); });
+  sel.onchange=()=>{ const ns=newSub(sel.value); ns.id=sub.id; ns.content=sub.content; ns.points=sub.points; parent.subtasks[si]=ns; renderTasks(); };
+  const ps=card.querySelector('.tc-pts input'); ps.oninput=()=> sub.points=parseInt(ps.value)||0;
+  const btns=card.querySelectorAll('.sub-chead .btn');
+  btns[0].onclick=()=>{ if(si>0){ [parent.subtasks[si-1],parent.subtasks[si]]=[parent.subtasks[si],parent.subtasks[si-1]]; renderTasks(); } };
+  btns[1].onclick=()=>{ if(si<parent.subtasks.length-1){ [parent.subtasks[si+1],parent.subtasks[si]]=[parent.subtasks[si],parent.subtasks[si+1]]; renderTasks(); } };
+  btns[2].onclick=()=>{ parent.subtasks.splice(si,1); renderTasks(); };
+  const body=card.querySelector('.sub-body');
+  body.appendChild(fieldInput(sub,'content',{label:'Treść podzadania', placeholder:'Wpisz polecenie…'}, true));
+  typeFieldsEditor(sub, body);
+  return card;
 }
 function taskCard(task,i){
   const info=TYPES[task.type];
@@ -384,113 +507,72 @@ function taskCard(task,i){
       <span class="tc-num">Zadanie ${i+1}</span>
       <span class="tc-type"><span class="ic">${esc(info.icon)}</span>${esc(info.label)}</span>
       <span class="grow"></span>
-      <span class="tc-pts">pkt <input type="number" min="0" step="1" value="${task.points}"></span>
+      <span class="tc-pts"></span>
       <button class="btn icon" title="W górę">↑</button>
       <button class="btn icon" title="W dół">↓</button>
       <button class="btn icon" title="Duplikuj">⧉</button>
       <button class="btn danger sm">Usuń</button>
-    </div>
-    <div class="tc-body"></div>
-  </div>`);
-  const ps=card.querySelector('.tc-pts input'); const bs=card.querySelectorAll('.tc-head .btn');
-  ps.oninput=()=> task.points=parseInt(ps.value)||0;
+    </div><div class="tc-body"></div></div>`);
+  const ptsCell=card.querySelector('.tc-pts');
+  if(task.type==='divided'){ ptsCell.innerHTML=`Σ <b>${taskPoints(task)}</b> pkt`; }
+  else { ptsCell.innerHTML=`pkt <input type="number" min="0" step="1" value="${task.points}">`; const pi=ptsCell.querySelector('input'); pi.oninput=()=> task.points=parseInt(pi.value)||0; }
+  const bs=card.querySelectorAll('.tc-head > .btn');
   bs[0].onclick=()=>{ if(i>0){ [state.tasks[i-1],state.tasks[i]]=[state.tasks[i],state.tasks[i-1]]; renderTasks(); } };
   bs[1].onclick=()=>{ if(i<state.tasks.length-1){ [state.tasks[i+1],state.tasks[i]]=[state.tasks[i],state.tasks[i+1]]; renderTasks(); } };
   bs[2].onclick=()=>{ const c=JSON.parse(JSON.stringify(task)); c.id=uid(); state.tasks.splice(i+1,0,c); renderTasks(); };
   bs[3].onclick=()=>{ if(confirm('Usunąć zadanie '+(i+1)+'?')){ state.tasks.splice(i,1); renderTasks(); } };
   const body=card.querySelector('.tc-body');
-
   body.appendChild(fieldInput(task,'title',{label:'Nagłówek zadania (opcjonalnie)', placeholder:'np. Uzupełnij definicje'}, false));
   const cl = task.type==='essay' ? 'Temat i wytyczne wypracowania'
-           : task.type==='source' ? 'Polecenie (do źródła)'
-           : task.type==='image' ? 'Polecenie (do ilustracji)'
+           : task.type==='divided' ? 'Wspólne wprowadzenie / polecenie (opcjonalnie)'
+           : (task.type==='source'||task.type==='image'||task.type==='rozstrzygniecie') ? 'Polecenie'
            : 'Treść / polecenie';
   body.appendChild(fieldInput(task,'content',{label:cl, placeholder:'Wpisz treść zadania… (wzory: $x^2+1$)'}, true));
-
-  if(task.type==='source'){
-    body.appendChild(fieldInput(task,'source',{label:'Tekst źródła', placeholder:'Wklej fragment źródła…'}, true));
-    body.appendChild(fieldInput(task,'sourceLabel',{label:'Podpis źródła', placeholder:'np. Konstytucja RP, art. 2'}, false));
-    body.appendChild(linesField(task,'lines','Liczba linii na odpowiedź'));
-  }
-  if(task.type==='image'){
-    const up=el(`<label class="f full">Ilustracja / mapa (plik graficzny)<input type="file" accept="image/*"></label>`);
-    up.querySelector('input').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ task.image=r.result; renderTasks(); }; r.readAsDataURL(f); };
-    body.appendChild(up);
-    if(task.image) body.appendChild(el(`<img class="imgprev" src="${task.image}">`));
-    body.appendChild(fieldInput(task,'caption',{label:'Podpis ilustracji', placeholder:'np. Mapa Europy 1939 r.'}, false));
-    body.appendChild(linesField(task,'lines','Liczba linii na odpowiedź'));
-  }
-  if(task.type==='closed' || task.type==='math_closed'){ body.appendChild(optionsEditor(task)); }
-  if(task.type==='math_closed'){ body.appendChild(linesField(task,'scratchmm','Wysokość brudnopisu (mm)')); }
-  if(task.type==='truefalse'){
-    const wrap=el(`<div><div class="hintline">Zdania do oceny (P/F):</div></div>`);
-    task.statements.forEach((st,si)=>{
-      const row=el(`<div class="opt-row"><span class="let">${si+1}</span>
-        <input type="text" value="${esc(st.text)}" placeholder="Treść zdania ${si+1}">
-        <label class="key"><input type="radio" name="tf-${task.id}-${si}" ${st.ans==='P'?'checked':''}> P</label>
-        <label class="key"><input type="radio" name="tf-${task.id}-${si}" ${st.ans==='F'?'checked':''}> F</label>
-        <button class="mini">✕</button></div>`);
-      row.querySelector('input[type=text]').oninput=e=> st.text=e.target.value;
-      const rs=row.querySelectorAll('input[type=radio]'); rs[0].onchange=()=>st.ans='P'; rs[1].onchange=()=>st.ans='F';
-      row.querySelector('.mini').onclick=()=>{ task.statements.splice(si,1); renderTasks(); };
-      wrap.appendChild(row);
-    });
-    const add=el(`<button class="mini" style="margin-top:4px">+ dodaj zdanie</button>`); add.onclick=()=>{ task.statements.push({text:'',ans:null}); renderTasks(); }; wrap.appendChild(add);
-    body.appendChild(wrap);
-  }
-  if(task.type==='matching'){
-    const wrap=el(`<div><div class="hintline">Kolumna I (z opcjonalnym kluczem):</div></div>`);
-    task.left.forEach((Lx,li)=>{
-      const row=el(`<div class="opt-row"><span class="let">${li+1}</span>
-        <input type="text" value="${esc(Lx.text)}" placeholder="Element ${li+1}">
-        <span class="key">→</span><select class="mini" style="padding:6px"></select><button class="mini">✕</button></div>`);
-      const sel=row.querySelector('select'); sel.appendChild(el(`<option value="">klucz…</option>`));
-      task.right.forEach((R,ri)=>{ const lt=String.fromCharCode(65+ri); const o=el(`<option value="${lt}">${lt}</option>`); if(Lx.correct===lt)o.selected=true; sel.appendChild(o); });
-      row.querySelector('input').oninput=e=> Lx.text=e.target.value; sel.onchange=()=> Lx.correct=sel.value;
-      row.querySelector('.mini:last-child').onclick=()=>{ task.left.splice(li,1); renderTasks(); };
-      wrap.appendChild(row);
-    });
-    const addL=el(`<button class="mini">+ element (kol. I)</button>`); addL.onclick=()=>{ task.left.push({text:'',correct:''}); renderTasks(); }; wrap.appendChild(addL);
-    wrap.appendChild(el(`<div class="hintline" style="margin-top:12px">Kolumna II (możliwości):</div>`));
-    task.right.forEach((R,ri)=>{
-      const lt=String.fromCharCode(65+ri);
-      const row=el(`<div class="opt-row"><span class="let">${lt}</span><input type="text" value="${esc(R)}" placeholder="Możliwość ${lt}"><button class="mini">✕</button></div>`);
-      row.querySelector('input').oninput=e=> task.right[ri]=e.target.value;
-      row.querySelector('.mini').onclick=()=>{ task.right.splice(ri,1); renderTasks(); };
-      wrap.appendChild(row);
-    });
-    const addR=el(`<button class="mini">+ możliwość (kol. II)</button>`); addR.onclick=()=>{ task.right.push(''); renderTasks(); }; wrap.appendChild(addR);
-    body.appendChild(wrap);
-  }
-  if(task.type==='open' || task.type==='gaps') body.appendChild(linesField(task,'lines','Liczba linii na odpowiedź'));
-  if(task.type==='essay') body.appendChild(linesField(task,'lines','Liczba linii na wypracowanie'));
-  if(task.type==='math_open'){
-    body.appendChild(linesField(task,'heightmm','Wysokość kratownicy (mm)'));
-    const g=el(`<label style="display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--muted); margin-top:8px"><input type="checkbox" ${task.fullpage?'checked':''}> zadanie na osobnej stronie</label>`);
-    g.querySelector('input').onchange=e=> task.fullpage=e.target.checked; body.appendChild(g);
+  if(['source','image','rozstrzygniecie','divided'].includes(task.type)) body.appendChild(materialsEditor(task));
+  if(task.type==='divided'){
+    task.subtasks ||= [];
+    const sec=el(`<div class="block-sub"><div class="hintline" style="margin-top:0">Podzadania (${task.subtasks.length}):</div></div>`);
+    task.subtasks.forEach((s,si)=> sec.appendChild(subEditor(task,s,si)));
+    const pal=el(`<div class="sub-palette"></div>`);
+    SUBTYPES.forEach(([k,lab])=>{ const b=el(`<button class="mini">+ ${esc(lab)}</button>`); b.onclick=()=>{ task.subtasks.push(newSub(k)); renderTasks(); }; pal.appendChild(b); });
+    sec.appendChild(pal); body.appendChild(sec);
+  } else {
+    typeFieldsEditor(task, body);
   }
   return card;
 }
 
 /* ===== ARKUSZ ===== */
 function richText(t){ return esc(t).replace(/\n/g,'<br>'); }
-function totalPoints(){ return state.tasks.reduce((s,t)=> s+(parseInt(t.points)||0),0); }
+function taskPoints(t){ return t.type==='divided' ? (t.subtasks||[]).reduce((a,s)=>a+(parseInt(s.points)||0),0) : (parseInt(t.points)||0); }
+function totalPoints(){ return state.tasks.reduce((s,t)=> s+taskPoints(t),0); }
 function cells(n){ let s='<span class="cells">'; for(let i=0;i<n;i++) s+='<span class="cell"></span>'; return s+'</span>'; }
 function writeLines(n){ n=Math.max(0,n|0); let s='<div class="writelines">'; for(let i=0;i<n;i++) s+='<div class="wl"></div>'; return s+'</div>'; }
-
-function taskBody(t, showKey){
+function materialsHTML(item){
   let h='';
-  if(t.content) h+=`<div class="t-content">${richText(t.content)}</div>`;
-  if(t.type==='source' && t.source) h+=`<div class="task-src">${richText(t.source)}${t.sourceLabel?`<div class="src-cap">${esc(t.sourceLabel)}</div>`:''}</div>`;
-  if(t.type==='image' && t.image){ h+=`<img class="task-img" src="${t.image}">`; if(t.caption) h+=`<div class="src-cap" style="text-align:center">${esc(t.caption)}</div>`; }
-  if(t.type==='closed' || t.type==='math_closed'){
+  (item.sources||[]).forEach((s,si)=>{
+    const multi=(item.sources||[]).length>1;
+    h+=`<div class="task-src">${multi?`<div class="src-no">Źródło ${si+1}</div>`:''}${richText(s.text)}${s.label?`<div class="src-cap">${esc(s.label)}</div>`:''}</div>`;
+  });
+  (item.images||[]).forEach((im,ii)=>{
+    if(!im.data) return;
+    const multi=(item.images||[]).filter(x=>x.data).length>1;
+    const cap = im.caption ? `${multi?`Ilustracja ${ii+1}. `:''}${esc(im.caption)}` : (multi?`Ilustracja ${ii+1}`:'');
+    h+=`<figure class="task-fig"><img class="task-img" src="${im.data}">${cap?`<figcaption class="src-cap" style="text-align:center">${cap}</figcaption>`:''}</figure>`;
+  });
+  return h;
+}
+function hasMaterials(t){ return ((t.sources&&t.sources.length)||(t.images&&t.images.some(im=>im.data))); }
+function answerHTML(t, showKey){
+  let h='';
+  if(t.type==='closed'||t.type==='math_closed'){
     (t.options||[]).forEach((o,oi)=>{ const lt=String.fromCharCode(65+oi); const ok=showKey&&t.correct===oi; h+=`<div class="opt ${ok?'correct':''}"><span class="lt">${lt}.</span>${richText(o)}${ok?' ✓':''}</div>`; });
+    if(t.type==='math_closed') h+=`<div class="scratch"><div class="sl">Brudnopis</div><div class="workbox grid" style="min-height:${t.scratchmm||45}mm"></div></div>`;
   }
-  if(t.type==='math_closed'){ h+=`<div class="scratch"><div class="sl">Brudnopis</div><div class="workbox grid" style="min-height:${t.scratchmm||45}mm"></div></div>`; }
-  if(t.type==='truefalse'){
+  else if(t.type==='truefalse'){
     (t.statements||[]).forEach((st,si)=>{ const p=showKey&&st.ans==='P',f=showKey&&st.ans==='F'; h+=`<div class="tf-row"><span class="st">${si+1}. ${richText(st.text)}</span><span class="pf"><span class="${p?'on':''}">P</span> / <span class="${f?'on':''}">F</span></span></div>`; });
   }
-  if(t.type==='matching'){
+  else if(t.type==='matching'){
     h+=`<div class="match-wrap"><div class="col"><b>Kolumna I</b><ol>`;
     (t.left||[]).forEach(Lx=> h+=`<li>${richText(Lx.text)} …….</li>`);
     h+=`</ol></div><div class="col"><b>Kolumna II</b><ul>`;
@@ -498,75 +580,74 @@ function taskBody(t, showKey){
     h+=`</ul></div></div>`;
     if(showKey) h+=`<div class="match-key">Klucz: ${esc((t.left||[]).map((Lx,li)=>`${li+1}–${Lx.correct||'?'}`).join(', '))}</div>`;
   }
-  if(t.type==='math_open'){ h+=`<div class="workbox grid" style="min-height:${t.heightmm||200}mm"></div>`; }
+  else if(t.type==='rozstrzygniecie'){
+    h+=`<div class="rz-lab">Rozstrzygnięcie:</div><div class="wl"></div>`;
+    if(showKey && t.answer) h+=`<div class="match-key">Klucz: ${esc(t.answer)}</div>`;
+    h+=`<div class="rz-lab" style="margin-top:10px">Uzasadnienie:</div>${writeLines(t.lines||4)}`;
+  }
+  else if(t.type==='math_open'){ h+=`<div class="workbox grid" style="min-height:${t.heightmm||200}mm"></div>`; }
   else if(t.type==='essay'){ h+=writeLines(t.lines||16); }
   else if(['open','gaps','source','image'].includes(t.type)){ h+=writeLines(t.lines||4); }
   return h;
 }
-
 function renderSheet(showKey){
   const m=state.meta, sheet=document.getElementById('sheet'), max=totalPoints();
   sheet.className='sheet mode-'+m.mode;
   let h='';
-
   if(m.mode==='exam'){
     h+=`<div class="exam-top">
-          <div class="brand">
-            <svg width="20" height="20" viewBox="0 0 100 100"><polygon points="50,22 90,42 50,62 10,42" fill="currentColor"/></svg>
-            ARKUSZ EGZAMINACYJNY
-          </div>
+          <div class="brand"><svg width="20" height="20" viewBox="0 0 100 100"><polygon points="50,22 90,42 50,62 10,42" fill="currentColor"/></svg> ARKUSZ EGZAMINACYJNY</div>
           <div style="max-width:52%; text-align:right">Arkusz zawiera informacje prawnie chronione do momentu rozpoczęcia egzaminu.</div>
         </div>`;
     h+=`<div class="exam-fill"><div class="bar">Wypełnia zdający</div>
-          <div class="codes">
-            <div class="grp">KOD ${cells(7)}</div>
-            <div class="grp">PESEL ${cells(11)}</div>
-          </div></div>`;
+          <div class="codes"><div class="grp">KOD ${cells(7)}</div><div class="grp">PESEL ${cells(11)}</div></div></div>`;
     h+=`<div class="exam-band"><span class="wt">${esc(m.workType)}</span>${m.formula?`<span class="fm">${esc(m.formula)}</span>`:''}</div>`;
     h+=`<div class="exam-title"><div class="subj">${esc((m.subject||'').toUpperCase())}</div>${m.level?`<span class="lvl">${esc(m.level)}</span>`:''}</div>`;
     if(m.topic) h+=`<div class="exam-topic"><span class="lab">Temat:</span>${esc(m.topic)}</div>`;
-    h+=`<div class="exam-meta">
-          ${m.date?`DATA: <b>${esc(m.date)}</b><br>`:''}
-          ${m.duration?`CZAS TRWANIA: <b>${esc(m.duration)} minut</b><br>`:''}
-          LICZBA PUNKTÓW DO UZYSKANIA: <b>${max}</b>
-        </div>`;
+    h+=`<div class="exam-meta">${m.date?`DATA: <b>${esc(m.date)}</b><br>`:''}${m.duration?`CZAS TRWANIA: <b>${esc(m.duration)} minut</b><br>`:''}LICZBA PUNKTÓW DO UZYSKANIA: <b>${max}</b></div>`;
     if(m.instruction) h+=`<div class="instruction"><div class="ih">Instrukcja dla zdającego</div>${richText(m.instruction)}</div>`;
     h+=`<hr class="sheet-rule">`;
   } else {
-    h+=`<div class="test-head">
-          <div class="eyebrow">${esc(m.workType)} · ${esc(m.subject)}</div>
-          <h1>${esc(m.topic||'Temat pracy')}</h1>
-          ${m.subtitle?`<div class="sub">${esc(m.subtitle)}</div>`:''}
-        </div>`;
+    h+=`<div class="test-head"><div class="eyebrow">${esc(m.workType)} · ${esc(m.subject)}</div><h1>${esc(m.topic||'Temat pracy')}</h1>${m.subtitle?`<div class="sub">${esc(m.subtitle)}</div>`:''}</div>`;
     h+=`<div class="test-identity">
           <div class="fld"><span class="lb">Imię i nazwisko:</span><span class="ln" style="min-width:150px"></span></div>
-          ${m.klasa?`<div class="fld"><span class="lb">Klasa:</span><span class="ln">${esc(m.klasa)}</span></div>`:`<div class="fld"><span class="lb">Klasa:</span><span class="ln"></span></div>`}
+          <div class="fld"><span class="lb">Klasa:</span><span class="ln">${esc(m.klasa||'')}</span></div>
           <div class="fld"><span class="lb">Data:</span><span class="ln"></span></div>
           <div class="fld"><span class="lb">Wynik:</span><span class="ln" style="min-width:36px"></span> / ${max}</div>
           <div class="fld"><span class="lb">Ocena:</span><span class="ln" style="min-width:60px"></span></div>
         </div>`;
     if(m.instruction) h+=`<div class="instruction">${richText(m.instruction)}</div>`;
   }
-
   state.tasks.forEach((t,i)=>{
-    const info=TYPES[t.type];
-    const pmax=parseInt(t.points)||0;
+    const info=TYPES[t.type]; const pmax=taskPoints(t);
     const icon=`<span class="t-ic" title="${esc(info.label)}">${esc(info.icon)}</span>`;
-    const fp=(t.type==='math_open' && t.fullpage)?' fullpage':'';
+    const fp=(t.type==='math_open'&&t.fullpage)?' fullpage':'';
+    let bodyHTML='';
+    if(t.content) bodyHTML+=`<div class="t-content">${richText(t.content)}</div>`;
+    if(hasMaterials(t)) bodyHTML+=materialsHTML(t);
+    if(t.type==='divided'){
+      (t.subtasks||[]).forEach((s,si)=>{
+        const sinfo=TYPES[s.type]||{icon:'',label:''}; const sp=parseInt(s.points)||0;
+        bodyHTML+=`<div class="subtask"><div class="sub-head"><span class="sub-no">${i+1}.${si+1}.</span><span class="t-ic" title="${esc(sinfo.label)}">${esc(sinfo.icon)}</span><span class="t-pts">(0–${sp})</span></div>`;
+        if(s.content) bodyHTML+=`<div class="t-content">${richText(s.content)}</div>`;
+        bodyHTML+=answerHTML(s,showKey);
+        bodyHTML+=`</div>`;
+      });
+    } else {
+      bodyHTML+=answerHTML(t,showKey);
+    }
     if(m.mode==='test'){
       const pts=`<span class="t-pts"><span class="blank"></span> / ${pmax} pkt</span>`;
       const head=`<div class="t-head">${t.title?`<span class="t-title">${esc(t.title)}</span>`:''}${icon}${pts}</div>`;
-      h+=`<div class="task${fp}"><div class="t-no">${i+1}</div><div class="t-main">${head}${taskBody(t,showKey)}</div></div>`;
+      h+=`<div class="task${fp}"><div class="t-no">${i+1}</div><div class="t-main">${head}${bodyHTML}</div></div>`;
     } else {
       const pts=`<span class="t-pts">(0–${pmax})</span>`;
       const head=`<div class="t-head"><span class="zno">Zadanie ${i+1}.</span>${t.title?`<span class="t-title">${esc(t.title)}</span>`:''}${icon}${pts}</div>`;
-      h+=`<div class="task${fp}"><div class="t-main">${head}${taskBody(t,showKey)}</div></div>`;
+      h+=`<div class="task${fp}"><div class="t-main">${head}${bodyHTML}</div></div>`;
     }
   });
-
   if(m.brudnopis) h+=`<div class="brudnopis fullpage"><div class="bl">BRUDNOPIS</div><div style="min-height:120mm"></div></div>`;
   h+=`<div class="sheet-foot">Przygotowano w Kreatorze prac pisemnych GAMIK · ${state.tasks.length} zad. · ${max} pkt</div>`;
-
   sheet.innerHTML=h;
   if(window.MathJax && MathJax.typesetPromise){ MathJax.typesetClear&&MathJax.typesetClear([sheet]); MathJax.typesetPromise([sheet]).catch(()=>{}); }
 }
@@ -594,7 +675,14 @@ document.getElementById('file-load').onchange=e=>{
     // normalizacja starszych plików
     if(!obj.meta.mode) obj.meta.mode='test';
     if(!obj.meta.instruction) obj.meta.instruction=DEF_INSTR;
-    obj.tasks.forEach(t=>{ if(t.type==='math') t.type='math_open'; if(t.title===undefined) t.title=''; });
+    obj.tasks.forEach(t=>{
+      if(t.type==='math') t.type='math_open';
+      if(t.title===undefined) t.title='';
+      if(t.source!==undefined||t.sourceLabel!==undefined){ t.sources=t.source?[{label:t.sourceLabel||'Źródło',text:t.source}]:[]; delete t.source; delete t.sourceLabel; }
+      if(t.image!==undefined||t.caption!==undefined){ t.images=t.image?[{data:t.image,caption:t.caption||''}]:[]; delete t.image; delete t.caption; }
+      if(['source','image','rozstrzygniecie','divided'].includes(t.type)){ t.sources=t.sources||[]; t.images=t.images||[]; }
+      if(t.type==='divided') t.subtasks=t.subtasks||[];
+    });
     state=obj; renderSettings(); renderTasks(); showEditor();
   }catch(err){ alert('Nie udało się wczytać pliku: '+err.message); } };
   r.readAsText(f); e.target.value='';
