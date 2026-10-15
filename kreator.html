@@ -173,6 +173,35 @@
   .task-fig{margin:8px 0}
   .task-fig figcaption{margin-top:4px}
   .src-no{font-weight:700; font-size:9.5pt; color:#444; margin-bottom:4px}
+  .csym{height:14px; width:auto; vertical-align:middle; margin:0 6px}
+  .exam-instr{break-before:page; break-after:page; padding-top:4mm}
+  .exam-instr .em-mark{display:flex; justify-content:flex-end; margin-bottom:6mm}
+  .ei-h{font-size:16pt; font-weight:800; margin:0 0 12px}
+  .ei-list{padding-left:20px; font-size:10.8pt; line-height:1.55}
+  .ei-list li{margin-bottom:9px; padding-left:4px}
+  .answer-card{break-before:page; font-size:10pt}
+  .ac-top{display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:6px; gap:12px}
+  .ac-title{font-weight:800; letter-spacing:.03em; font-size:11pt}
+  .ac-code{font-weight:700; font-family:'Inter',monospace; font-size:10pt; text-align:right}
+  .ac-chk{font-size:9pt; margin-top:8px; line-height:1.9; color:#222}
+  .chkbox{display:inline-block; width:12px; height:12px; border:1.5px solid #c0392b; border-radius:2px; vertical-align:-2px; margin-right:6px}
+  .ac-band{background:#000; color:#fff; font-weight:700; text-align:center; padding:4px; letter-spacing:.1em; margin:14px 0 8px; font-size:9.5pt}
+  .ac-pesel{display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap}
+  .ac-pesel .lb{font-weight:700; letter-spacing:.06em}
+  .ac-naklejka{margin-left:auto; border:1px dashed #c0392b; color:#c0392b; font-style:italic; font-size:8pt; padding:8px 12px; border-radius:3px; max-width:46%; text-align:center}
+  .ac-sub{font-weight:700; font-size:9pt; letter-spacing:.04em; margin:10px 0 6px; text-transform:uppercase; color:#333}
+  .acard-grid{display:flex; flex-wrap:wrap; gap:4px 20px}
+  .acard-row{display:flex; align-items:center; gap:7px; margin-bottom:3px; min-width:150px}
+  .acard-row.egz .anum{color:#000}
+  .anum{font-weight:700; min-width:34px; font-size:9pt}
+  .aboxes{display:flex; gap:3px; flex-wrap:wrap}
+  .abox{display:inline-grid; place-items:center; width:17px; height:16px; border:1px solid #c0392b; border-radius:2px; font-size:7.5pt; color:#c0392b; font-weight:700}
+  .pbox{display:inline-grid; place-items:center; min-width:16px; height:16px; padding:0 2px; border:1px solid #c0392b; border-radius:2px; font-size:7.5pt; color:#c0392b; font-weight:700}
+  .essay-tab{border-collapse:collapse; margin:12px 0}
+  .essay-tab caption{font-weight:800; text-align:left; margin-bottom:5px; font-size:10pt}
+  .essay-tab th{border:1px solid #000; padding:3px 8px; font-size:9pt; text-align:left; font-weight:700; background:#f3f3f3}
+  .essay-tab td.pbox{border:1px solid #000; color:#000; border-radius:0; width:20px; height:18px}
+  .essay-tab td.pbox.empty{border:1px solid #e2e2e2}
   .t-pts-exam{margin-top:2px}
 
   .brudnopis{margin-top:16px; border-top:2px solid var(--ac); padding-top:8px}
@@ -267,6 +296,9 @@ const WORKTYPES = {
   exam: ['Egzamin roczny diagnostyczny','Egzamin maturalny diagnostyczny'],
 };
 const DEF_INSTR = 'Przeczytaj uważnie polecenia. Pisz czytelnie. W zadaniach zamkniętych zaznacz poprawną odpowiedź. Nie używaj korektora.';
+const DEF_EXAM_INSTR = 'Sprawdź, czy arkusz egzaminacyjny zawiera wszystkie kolejno ponumerowane strony. Ewentualny brak zgłoś przewodniczącemu zespołu nadzorującego egzamin.\nNa pierwszej stronie arkusza oraz na karcie odpowiedzi wpisz swój numer PESEL i przyklej naklejkę z kodem.\nSymbol [SYMBOL] zamieszczony przy zadaniu zamkniętym oznacza, że rozwiązanie tego zadania musisz przenieść na kartę odpowiedzi. Ocenie podlegają wyłącznie odpowiedzi zaznaczone na karcie odpowiedzi.\nOdpowiedzi do zadań zamkniętych oznaczonych symbolem [SYMBOL] zaznacz na karcie odpowiedzi w części przeznaczonej dla zdającego: zamaluj pola do tego przeznaczone; błędne zaznaczenie otocz kółkiem i zaznacz właściwe.\nOdpowiedzi do pozostałych zadań zapisz w miejscu na to przeznaczonym przy każdym zadaniu.\nPisz czytelnie. Używaj długopisu/pióra tylko z czarnym tuszem/atramentem.\nNie używaj korektora, a błędne zapisy wyraźnie przekreśl.\nNie wpisuj żadnych znaków w tabelkach przeznaczonych dla egzaminatora. Tabelki są umieszczone na marginesie przy wybranych zadaniach.\nPamiętaj, że zapisy w brudnopisie nie będą oceniane.';
+const isClosedType = t => ['closed','math_closed','truefalse','matching'].includes(t);
+const CLOSED_SYMBOL = '<svg class="csym" viewBox="0 0 92 30" aria-hidden="true"><g fill="none" stroke="#c0392b" stroke-width="3"><rect x="2" y="7" width="16" height="16"/><rect x="20" y="7" width="16" height="16"/><rect x="38" y="7" width="16" height="16"/><rect x="56" y="7" width="16" height="16"/></g><path d="M58 25 L88 3" stroke="#2f5aa8" stroke-width="5" stroke-linecap="round"/><path d="M58 25 l8 1 -2 -7 z" fill="#2f5aa8"/></svg>';
 
 let state = { meta:{}, tasks:[] };
 let activeField = null;
@@ -282,7 +314,7 @@ function newTask(type){
   if(type==='image')       return {...b, sources:[], images:[{data:null,caption:''}], lines:5};
   if(type==='rozstrzygniecie') return {...b, sources:[], images:[], answer:'', lines:4};
   if(type==='divided')     return {...b, sources:[], images:[], subtasks:[]};
-  if(type==='essay')       return {...b, points:15, lines:18};
+  if(type==='essay')       return {...b, points:15, lines:18, criteria:[{name:'Treść',max:5},{name:'Kompozycja',max:3},{name:'Język',max:4}]};
   if(type==='math_closed') return {...b, points:1, options:['','','',''], correct:null, scratchmm:45};
   if(type==='math_open')   return {...b, points:6, heightmm:200, fullpage:true};
   return b;
@@ -300,7 +332,7 @@ function newSub(type){
 function initMeta(){
   state.meta = { mode:'test', subject:'Historia', workType:'Sprawdzian', level:'',
     formula:'Formuła 2023', topic:'', subtitle:'', klasa:'', duration:'45', date:'',
-    instruction:DEF_INSTR, brudnopis:false };
+    instruction:DEF_INSTR, examInstruction:DEF_EXAM_INSTR, answerCard:true, brudnopis:false };
 }
 
 /* ===== settings (zależne od trybu) ===== */
@@ -316,11 +348,14 @@ function renderSettings(){
     const lv=['','Poziom podstawowy','Poziom rozszerzony'];
     modeFields=`
       <label class="f">Poziom<select id="s-level">${lv.map(x=>`<option value="${esc(x)}" ${m.level===x?'selected':''}>${x?esc(x):'— brak —'}</option>`).join('')}</select></label>
-      <label class="f">Formuła / oznaczenie<input id="s-formula" value="${esc(m.formula)}" placeholder="np. Formuła 2023"></label>`;
+      <label class="f">Formuła / oznaczenie<input id="s-formula" value="${esc(m.formula)}" placeholder="np. Formuła 2023"></label>
+      <label class="f full">Instrukcja dla zdającego (osobna strona)<textarea id="s-einstruction" style="min-height:120px">${esc(m.examInstruction)}</textarea></label>
+      <label class="f full" style="flex-direction:row; align-items:center; gap:8px"><input type="checkbox" id="s-answercard" ${m.answerCard?'checked':''}> Dodaj kartę odpowiedzi na końcu</label>`;
   } else {
     modeFields=`
       <label class="f">Klasa<input id="s-klasa" value="${esc(m.klasa)}" placeholder="np. 8a"></label>
-      <label class="f">Podtytuł (opis)<input id="s-subtitle" value="${esc(m.subtitle)}" placeholder="np. zakres materiału / działy"></label>`;
+      <label class="f">Podtytuł (opis)<input id="s-subtitle" value="${esc(m.subtitle)}" placeholder="np. zakres materiału / działy"></label>
+      <label class="f full">Instrukcja dla ucznia<textarea id="s-instruction">${esc(m.instruction)}</textarea></label>`;
   }
   settings.innerHTML=`
     <h2>Ustawienia arkusza</h2>
@@ -335,14 +370,13 @@ function renderSettings(){
       ${modeFields}
       <label class="f">Czas (min)<input id="s-duration" value="${esc(m.duration)}" placeholder="45"></label>
       <label class="f">Data<input id="s-date" value="${esc(m.date)}" placeholder="np. 6 maja 2025 r."></label>
-      <label class="f full">Instrukcja dla ucznia<textarea id="s-instruction">${esc(m.instruction)}</textarea></label>
       <label class="f full" style="flex-direction:row; align-items:center; gap:8px"><input type="checkbox" id="s-brudnopis" ${m.brudnopis?'checked':''}> Dodaj brudnopis na końcu</label>
     </div>`;
   settings.querySelector('#mode-seg').querySelectorAll('button').forEach(b=> b.onclick=()=>{ state.meta.mode=b.dataset.m; renderSettings(); });
   bindVal('s-subject','subject'); bindVal('s-worktype','workType'); bindVal('s-topic','topic');
   bindVal('s-duration','duration'); bindVal('s-date','date'); bindVal('s-instruction','instruction');
-  if(m.mode==='exam'){ bindVal('s-level','level'); bindVal('s-formula','formula'); }
-  else { bindVal('s-klasa','klasa'); bindVal('s-subtitle','subtitle'); }
+  if(m.mode==='exam'){ bindVal('s-level','level'); bindVal('s-formula','formula'); bindVal('s-einstruction','examInstruction'); const ac=document.getElementById('s-answercard'); if(ac) ac.onchange=e=> state.meta.answerCard=e.target.checked; }
+  else { bindVal('s-klasa','klasa'); bindVal('s-subtitle','subtitle'); bindVal('s-instruction','instruction'); }
   settings.querySelector('#s-brudnopis').onchange=e=> state.meta.brudnopis=e.target.checked;
 }
 
@@ -467,6 +501,21 @@ function materialsEditor(item){
   const addI=el(`<button class="mini" style="margin-left:8px">+ dodaj ilustrację</button>`); addI.onclick=()=>{ item.images.push({data:null,caption:''}); renderTasks(); }; wrap.appendChild(addI);
   return wrap;
 }
+function criteriaEditor(task){
+  task.criteria = task.criteria || [];
+  const wrap=el(`<div class="block-sub"><div class="hintline" style="margin-top:0">Kryteria oceny (zakresy) — używane w karcie odpowiedzi w trybie Egzamin:</div></div>`);
+  task.criteria.forEach((c,ci)=>{
+    const row=el(`<div class="opt-row"><input type="text" value="${esc(c.name)}" placeholder="np. Treść" style="flex:2">
+      <span class="key">maks.</span><input type="number" min="0" step="1" value="${c.max}" style="flex:0 0 72px">
+      <button class="mini">✕</button></div>`);
+    const ins=row.querySelectorAll('input');
+    ins[0].oninput=()=> c.name=ins[0].value; ins[1].oninput=()=> c.max=parseInt(ins[1].value)||0;
+    row.querySelector('.mini').onclick=()=>{ task.criteria.splice(ci,1); renderTasks(); };
+    wrap.appendChild(row);
+  });
+  const add=el(`<button class="mini">+ dodaj kryterium</button>`); add.onclick=()=>{ task.criteria.push({name:'',max:1}); renderTasks(); }; wrap.appendChild(add);
+  return wrap;
+}
 function typeFieldsEditor(item, body){
   const t=item.type;
   if(t==='closed'||t==='math_closed') body.appendChild(optionsEditor(item));
@@ -475,7 +524,7 @@ function typeFieldsEditor(item, body){
   if(t==='matching') body.appendChild(matchingEditor(item));
   if(t==='rozstrzygniecie'){ body.appendChild(fieldInput(item,'answer',{label:'Poprawne rozstrzygnięcie (klucz, opcjonalnie)', placeholder:'np. Tak / Nie'}, false)); body.appendChild(linesField(item,'lines','Liczba linii uzasadnienia')); }
   if(t==='open'||t==='gaps') body.appendChild(linesField(item,'lines','Liczba linii na odpowiedź'));
-  if(t==='essay') body.appendChild(linesField(item,'lines','Liczba linii na wypracowanie'));
+  if(t==='essay'){ body.appendChild(criteriaEditor(item)); body.appendChild(linesField(item,'lines','Liczba linii na wypracowanie')); }
   if(t==='source'||t==='image') body.appendChild(linesField(item,'lines','Liczba linii na odpowiedź'));
   if(t==='math_open'){ body.appendChild(linesField(item,'heightmm','Wysokość kratownicy (mm)')); const g=el(`<label style="display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--muted); margin-top:8px"><input type="checkbox" ${item.fullpage?'checked':''}> zadanie na osobnej stronie</label>`); g.querySelector('input').onchange=e=> item.fullpage=e.target.checked; body.appendChild(g); }
 }
@@ -514,7 +563,7 @@ function taskCard(task,i){
       <button class="btn danger sm">Usuń</button>
     </div><div class="tc-body"></div></div>`);
   const ptsCell=card.querySelector('.tc-pts');
-  if(task.type==='divided'){ ptsCell.innerHTML=`Σ <b>${taskPoints(task)}</b> pkt`; }
+  if(task.type==='divided' || task.type==='essay'){ ptsCell.innerHTML=`Σ <b>${taskPoints(task)}</b> pkt`; }
   else { ptsCell.innerHTML=`pkt <input type="number" min="0" step="1" value="${task.points}">`; const pi=ptsCell.querySelector('input'); pi.oninput=()=> task.points=parseInt(pi.value)||0; }
   const bs=card.querySelectorAll('.tc-head > .btn');
   bs[0].onclick=()=>{ if(i>0){ [state.tasks[i-1],state.tasks[i]]=[state.tasks[i],state.tasks[i-1]]; renderTasks(); } };
@@ -544,10 +593,70 @@ function taskCard(task,i){
 
 /* ===== ARKUSZ ===== */
 function richText(t){ return esc(t).replace(/\n/g,'<br>'); }
-function taskPoints(t){ return t.type==='divided' ? (t.subtasks||[]).reduce((a,s)=>a+(parseInt(s.points)||0),0) : (parseInt(t.points)||0); }
+function taskPoints(t){
+  if(t.type==='divided') return (t.subtasks||[]).reduce((a,s)=>a+(parseInt(s.points)||0),0);
+  if(t.type==='essay'){ const c=t.criteria||[]; if(c.length) return c.reduce((a,x)=>a+(parseInt(x.max)||0),0); return parseInt(t.points)||0; }
+  return parseInt(t.points)||0;
+}
 function totalPoints(){ return state.tasks.reduce((s,t)=> s+taskPoints(t),0); }
 function cells(n){ let s='<span class="cells">'; for(let i=0;i<n;i++) s+='<span class="cell"></span>'; return s+'</span>'; }
 function writeLines(n){ n=Math.max(0,n|0); let s='<div class="writelines">'; for(let i=0;i<n;i++) s+='<div class="wl"></div>'; return s+'</div>'; }
+function EM_MARK(m){
+  const lab=((m.formula||'').match(/\d{2}/g)||[]).slice(-1)[0]||'';
+  return `<svg width="86" height="70" viewBox="0 0 120 100" aria-hidden="true"><g fill="none" stroke="#6a4a9c" stroke-width="2.4"><polygon points="60,16 104,36 60,56 16,36"/><polygon points="60,30 104,50 60,70 16,50"/><polygon points="60,44 104,64 60,84 16,64"/></g><text x="60" y="58" text-anchor="middle" fill="#6a4a9c" font-family="Inter,sans-serif" font-weight="800" font-size="14" transform="rotate(-18 60 54)">EM ${lab}</text></svg>`;
+}
+function instrLines(text){
+  return String(text||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=> `<li>${richText(l).split('[SYMBOL]').join(CLOSED_SYMBOL)}</li>`).join('');
+}
+function ansLetters(n){ n=Math.max(1,n|0); let s=''; for(let i=0;i<n;i++) s+=`<span class="abox">${String.fromCharCode(65+i)}</span>`; return s; }
+function ansPF(){ return `<span class="abox">P</span><span class="abox">F</span>`; }
+function ptsBoxes(max){ max=Math.max(0,max|0); let s=''; for(let i=0;i<=max;i++) s+=`<span class="pbox">${i}</span>`; return s; }
+function collectAnswer(){
+  const zd=[], egz=[], essays=[];
+  const pushClosed=(prefix,it)=>{
+    if(it.type==='closed'||it.type==='math_closed'){ zd.push({num:prefix, boxes:ansLetters((it.options||[]).length||4)}); }
+    else if(it.type==='truefalse'){ const st=it.statements||[]; if(st.length<=1) zd.push({num:prefix,boxes:ansPF()}); else st.forEach((_,k)=> zd.push({num:`${prefix}.${k+1}`,boxes:ansPF()})); }
+    else if(it.type==='matching'){ const L=it.left||[], R=(it.right||[]).length||4; if(L.length<=1) zd.push({num:prefix,boxes:ansLetters(R)}); else L.forEach((_,k)=> zd.push({num:`${prefix}.${k+1}`,boxes:ansLetters(R)})); }
+  };
+  const pushOpen=(prefix,it)=>{
+    if(it.type==='essay'){ const c=(it.criteria&&it.criteria.length)?it.criteria:[{name:'Punkty',max:parseInt(it.points)||0}]; essays.push({num:prefix, criteria:c}); }
+    else { egz.push({num:prefix, max:parseInt(it.points)||0}); }
+  };
+  state.tasks.forEach((t,i)=>{
+    const P=`${i+1}`;
+    if(t.type==='divided'){ (t.subtasks||[]).forEach((s,si)=>{ const sp=`${i+1}.${si+1}`; if(isClosedType(s.type)) pushClosed(sp,s); else pushOpen(sp,s); }); }
+    else if(isClosedType(t.type)) pushClosed(P,t);
+    else pushOpen(P,t);
+  });
+  return {zd,egz,essays};
+}
+function answerCardHTML(){
+  const m=state.meta; const {zd,egz,essays}=collectAnswer();
+  let h=`<div class="answer-card fullpage">`;
+  h+=`<div class="ac-top"><div class="ac-title">WYPEŁNIA ZESPÓŁ NADZORUJĄCY</div><div class="ac-code">${esc((m.subject||'').toUpperCase())}${m.formula?` · ${esc(m.formula)}`:''}</div></div>`;
+  h+=`<div class="ac-chk"><span class="chkbox"></span> Uprawnienia zdającego do nieprzenoszenia odpowiedzi na kartę odpowiedzi.<br><span class="chkbox"></span> Uprawnienia zdającego do dostosowania zasad oceniania.</div>`;
+  h+=`<div class="ac-band">WYPEŁNIA ZDAJĄCY</div>`;
+  h+=`<div class="ac-pesel"><span class="lb">PESEL</span>${cells(11)}<span class="ac-naklejka">Miejsce na naklejkę z kodem</span></div>`;
+  h+=`<div class="ac-sub">Odpowiedzi do zadań zamkniętych</div>`;
+  h+=`<div class="acard-grid">`;
+  if(!zd.length) h+=`<div class="tiny" style="color:#888">— brak zadań zamkniętych —</div>`;
+  zd.forEach(r=> h+=`<div class="acard-row"><span class="anum">${esc(r.num)}</span><span class="aboxes">${r.boxes}</span></div>`);
+  h+=`</div>`;
+  if(egz.length||essays.length){
+    h+=`<div class="ac-band">WYPEŁNIA EGZAMINATOR</div>`;
+    h+=`<div class="ac-sub">Zadania otwarte — liczba przyznanych punktów</div>`;
+    if(egz.length){ h+=`<div class="acard-grid">`; egz.forEach(r=> h+=`<div class="acard-row egz"><span class="anum">${esc(r.num)}</span><span class="aboxes">${ptsBoxes(r.max)}</span></div>`); h+=`</div>`; }
+    essays.forEach(es=>{
+      const colMax=Math.max(1,...es.criteria.map(c=>parseInt(c.max)||0));
+      h+=`<table class="essay-tab"><caption>ZADANIE ${esc(es.num)} — wypracowanie</caption>`;
+      h+=`<tr><th>Kryterium / punkty</th>${Array.from({length:colMax+1},(_,k)=>`<td class="pbox">${k}</td>`).join('')}</tr>`;
+      es.criteria.forEach(c=>{ const cm=parseInt(c.max)||0; h+=`<tr><th>${esc(c.name||'—')}</th>${Array.from({length:colMax+1},(_,k)=> k<=cm?`<td class="pbox">${k}</td>`:`<td class="pbox empty"></td>`).join('')}</tr>`; });
+      h+=`</table>`;
+    });
+  }
+  h+=`</div>`;
+  return h;
+}
 function materialsHTML(item){
   let h='';
   (item.sources||[]).forEach((s,si)=>{
@@ -605,8 +714,7 @@ function renderSheet(showKey){
     h+=`<div class="exam-title"><div class="subj">${esc((m.subject||'').toUpperCase())}</div>${m.level?`<span class="lvl">${esc(m.level)}</span>`:''}</div>`;
     if(m.topic) h+=`<div class="exam-topic"><span class="lab">Temat:</span>${esc(m.topic)}</div>`;
     h+=`<div class="exam-meta">${m.date?`DATA: <b>${esc(m.date)}</b><br>`:''}${m.duration?`CZAS TRWANIA: <b>${esc(m.duration)} minut</b><br>`:''}LICZBA PUNKTÓW DO UZYSKANIA: <b>${max}</b></div>`;
-    if(m.instruction) h+=`<div class="instruction"><div class="ih">Instrukcja dla zdającego</div>${richText(m.instruction)}</div>`;
-    h+=`<hr class="sheet-rule">`;
+    h+=`<div class="exam-instr fullpage"><div class="em-mark">${EM_MARK(m)}</div><h2 class="ei-h">Instrukcja dla zdającego</h2><ol class="ei-list">${instrLines(m.examInstruction)}</ol></div>`;
   } else {
     h+=`<div class="test-head"><div class="eyebrow">${esc(m.workType)} · ${esc(m.subject)}</div><h1>${esc(m.topic||'Temat pracy')}</h1>${m.subtitle?`<div class="sub">${esc(m.subtitle)}</div>`:''}</div>`;
     h+=`<div class="test-identity">
@@ -628,7 +736,8 @@ function renderSheet(showKey){
     if(t.type==='divided'){
       (t.subtasks||[]).forEach((s,si)=>{
         const sinfo=TYPES[s.type]||{icon:'',label:''}; const sp=parseInt(s.points)||0;
-        bodyHTML+=`<div class="subtask"><div class="sub-head"><span class="sub-no">${i+1}.${si+1}.</span><span class="t-ic" title="${esc(sinfo.label)}">${esc(sinfo.icon)}</span><span class="t-pts">(0–${sp})</span></div>`;
+        const ssym=(m.mode==='exam'&&isClosedType(s.type))?CLOSED_SYMBOL:'';
+        bodyHTML+=`<div class="subtask"><div class="sub-head"><span class="sub-no">${i+1}.${si+1}.</span><span class="t-ic" title="${esc(sinfo.label)}">${esc(sinfo.icon)}</span>${ssym}<span class="t-pts">(0–${sp})</span></div>`;
         if(s.content) bodyHTML+=`<div class="t-content">${richText(s.content)}</div>`;
         bodyHTML+=answerHTML(s,showKey);
         bodyHTML+=`</div>`;
@@ -642,11 +751,13 @@ function renderSheet(showKey){
       h+=`<div class="task${fp}"><div class="t-no">${i+1}</div><div class="t-main">${head}${bodyHTML}</div></div>`;
     } else {
       const pts=`<span class="t-pts">(0–${pmax})</span>`;
-      const head=`<div class="t-head"><span class="zno">Zadanie ${i+1}.</span>${t.title?`<span class="t-title">${esc(t.title)}</span>`:''}${icon}${pts}</div>`;
+      const sym=isClosedType(t.type)?CLOSED_SYMBOL:'';
+      const head=`<div class="t-head"><span class="zno">Zadanie ${i+1}.</span>${t.title?`<span class="t-title">${esc(t.title)}</span>`:''}${icon}${sym}${pts}</div>`;
       h+=`<div class="task${fp}"><div class="t-main">${head}${bodyHTML}</div></div>`;
     }
   });
   if(m.brudnopis) h+=`<div class="brudnopis fullpage"><div class="bl">BRUDNOPIS</div><div style="min-height:120mm"></div></div>`;
+  if(m.mode==='exam' && m.answerCard) h+=answerCardHTML();
   h+=`<div class="sheet-foot">Przygotowano w Kreatorze prac pisemnych GAMIK · ${state.tasks.length} zad. · ${max} pkt</div>`;
   sheet.innerHTML=h;
   if(window.MathJax && MathJax.typesetPromise){ MathJax.typesetClear&&MathJax.typesetClear([sheet]); MathJax.typesetPromise([sheet]).catch(()=>{}); }
@@ -675,6 +786,8 @@ document.getElementById('file-load').onchange=e=>{
     // normalizacja starszych plików
     if(!obj.meta.mode) obj.meta.mode='test';
     if(!obj.meta.instruction) obj.meta.instruction=DEF_INSTR;
+    if(!obj.meta.examInstruction) obj.meta.examInstruction=DEF_EXAM_INSTR;
+    if(obj.meta.answerCard===undefined) obj.meta.answerCard=true;
     obj.tasks.forEach(t=>{
       if(t.type==='math') t.type='math_open';
       if(t.title===undefined) t.title='';
@@ -682,6 +795,7 @@ document.getElementById('file-load').onchange=e=>{
       if(t.image!==undefined||t.caption!==undefined){ t.images=t.image?[{data:t.image,caption:t.caption||''}]:[]; delete t.image; delete t.caption; }
       if(['source','image','rozstrzygniecie','divided'].includes(t.type)){ t.sources=t.sources||[]; t.images=t.images||[]; }
       if(t.type==='divided') t.subtasks=t.subtasks||[];
+      if(t.type==='essay' && !t.criteria) t.criteria=[{name:'Treść',max:5},{name:'Kompozycja',max:3},{name:'Język',max:4}];
     });
     state=obj; renderSettings(); renderTasks(); showEditor();
   }catch(err){ alert('Nie udało się wczytać pliku: '+err.message); } };
