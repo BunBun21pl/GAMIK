@@ -81,6 +81,15 @@
   .hintline{font-size:12px; color:var(--muted-2); margin-top:6px}
   .imgprev{max-width:220px; max-height:150px; border:1px solid var(--line); border-radius:8px; margin-top:8px; display:block}
   .empty{text-align:center; color:var(--muted-2); padding:34px; border:1px dashed var(--line-2); border-radius:var(--radius); background:#fff}
+  .bank-bar{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px}
+  .bank-bar label.f{flex:1; min-width:190px}
+  .bank-row{display:flex; gap:12px; align-items:flex-start; padding:12px 2px; border-top:1px solid var(--line)}
+  .bank-row .ic{display:inline-grid; place-items:center; min-width:34px; height:20px; border-radius:5px; background:var(--soft); color:var(--accent); font-size:10.5px; font-weight:700; padding:0 4px; flex:0 0 auto; margin-top:2px}
+  .bank-q{flex:1; min-width:0; font-size:13.5px}
+  .bank-q .det{font-size:12.5px; color:var(--muted); margin-top:3px; white-space:pre-wrap}
+  .bank-q .ans{font-size:12.5px; color:#1c7a43; margin-top:3px}
+  .bank-meta{font-size:12px; color:var(--muted); white-space:nowrap; font-weight:600; margin-top:3px}
+  .btn:disabled{opacity:.6; cursor:default}
   .block-sub{margin-top:12px; padding:12px; border:1px dashed var(--line-2); border-radius:10px; background:#fbfcfd}
   .mat{border:1px solid var(--line); border-radius:8px; padding:10px; margin:8px 0; background:#fff}
   .mat-h{display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px}
@@ -100,6 +109,7 @@
     margin:0 auto 40px; padding:16mm 15mm; box-shadow:0 3px 40px rgba(20,24,31,.14); border:1px solid #e3e3e3; line-height:1.5; font-size:11.6pt}
   .sheet.mode-test{ --ac:#35707a; --ac-d:#2a5960; --ac-soft:#e7f0f1 }
   .sheet.mode-exam{ --ac:#6a4a9c; --ac-d:#523a7d; --ac-soft:#ece3f5 }
+  .sheet.mode-exam.exam-blue{ --ac:#3d74d6; --ac-d:#2a55a8; --ac-soft:#e4ecfb }
 
   /* --- TEST --- */
   .test-head{background:var(--ac); color:#fff; padding:18px 22px; border-radius:5px}
@@ -175,7 +185,7 @@
   .src-no{font-weight:700; font-size:9.5pt; color:#444; margin-bottom:4px}
   .csym{height:14px; width:auto; vertical-align:middle; margin:0 6px}
   .exam-instr{break-before:page; break-after:page; padding-top:4mm}
-  .exam-instr .em-mark{display:flex; justify-content:flex-end; margin-bottom:6mm}
+  .exam-instr .em-mark{display:flex; justify-content:flex-end; margin-bottom:6mm; color:var(--ac)}
   .ei-h{font-size:16pt; font-weight:800; margin:0 0 12px}
   .ei-list{padding-left:20px; font-size:10.8pt; line-height:1.55}
   .ei-list li{margin-bottom:9px; padding-left:4px}
@@ -236,6 +246,7 @@
   </div>
   <div class="grow"></div>
   <div class="toolbtns">
+    <a class="btn ghost" href="index.html" style="text-decoration:none">Dziennik</a>
     <button class="btn ghost" id="btn-edit" style="display:none">← Wróć do edycji</button>
     <button class="btn ghost" id="btn-save">Zapisz plik</button>
     <button class="btn ghost" id="btn-load">Wczytaj</button>
@@ -258,6 +269,8 @@
       <h2>Dodaj zadanie</h2>
       <div class="palette" id="palette"></div>
     </div>
+
+    <div class="block" id="bank"></div>
 
     <div id="tasks"></div>
   </div>
@@ -293,8 +306,10 @@ const TYPES = {
 };
 const WORKTYPES = {
   test: ['Kartkówka','Sprawdzian'],
-  exam: ['Egzamin roczny diagnostyczny','Egzamin maturalny diagnostyczny'],
+  exam: ['Egzamin roczny','Egzamin roczny diagnostyczny','Egzamin maturalny diagnostyczny'],
 };
+/* Egzaminy roczne drukują się na niebiesko, maturalny – na fioletowo. */
+const isAnnualExam = m => m.mode==='exam' && /roczny/i.test(m.workType||'');
 const DEF_INSTR = 'Przeczytaj uważnie polecenia. Pisz czytelnie. W zadaniach zamkniętych zaznacz poprawną odpowiedź. Nie używaj korektora.';
 const DEF_EXAM_INSTR = 'Sprawdź, czy arkusz egzaminacyjny zawiera wszystkie kolejno ponumerowane strony. Ewentualny brak zgłoś przewodniczącemu zespołu nadzorującego egzamin.\nNa pierwszej stronie arkusza oraz na karcie odpowiedzi wpisz swój numer PESEL i przyklej naklejkę z kodem.\nSymbol [SYMBOL] zamieszczony przy zadaniu zamkniętym oznacza, że rozwiązanie tego zadania musisz przenieść na kartę odpowiedzi. Ocenie podlegają wyłącznie odpowiedzi zaznaczone na karcie odpowiedzi.\nOdpowiedzi do zadań zamkniętych oznaczonych symbolem [SYMBOL] zaznacz na karcie odpowiedzi w części przeznaczonej dla zdającego: zamaluj pola do tego przeznaczone; błędne zaznaczenie otocz kółkiem i zaznacz właściwe.\nOdpowiedzi do pozostałych zadań zapisz w miejscu na to przeznaczonym przy każdym zadaniu.\nPisz czytelnie. Używaj długopisu/pióra tylko z czarnym tuszem/atramentem.\nNie używaj korektora, a błędne zapisy wyraźnie przekreśl.\nNie wpisuj żadnych znaków w tabelkach przeznaczonych dla egzaminatora. Tabelki są umieszczone na marginesie przy wybranych zadaniach.\nPamiętaj, że zapisy w brudnopisie nie będą oceniane.';
 const isClosedType = t => ['closed','math_closed','truefalse','matching'].includes(t);
@@ -526,6 +541,7 @@ function typeFieldsEditor(item, body){
   if(t==='open'||t==='gaps') body.appendChild(linesField(item,'lines','Liczba linii na odpowiedź'));
   if(t==='essay'){ body.appendChild(criteriaEditor(item)); body.appendChild(linesField(item,'lines','Liczba linii na wypracowanie')); }
   if(t==='source'||t==='image') body.appendChild(linesField(item,'lines','Liczba linii na odpowiedź'));
+  if(['open','gaps','source','image','essay','math_open'].includes(t)) body.appendChild(fieldInput(item,'keyNote',{label:'Klucz / odpowiedź wzorcowa (widoczna tylko w podglądzie z kluczem)', placeholder:'opcjonalnie'}, true));
   if(t==='math_open'){ body.appendChild(linesField(item,'heightmm','Wysokość kratownicy (mm)')); const g=el(`<label style="display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--muted); margin-top:8px"><input type="checkbox" ${item.fullpage?'checked':''}> zadanie na osobnej stronie</label>`); g.querySelector('input').onchange=e=> item.fullpage=e.target.checked; body.appendChild(g); }
 }
 const SUBTYPES=[['closed','Zamknięte'],['truefalse','Prawda/Fałsz'],['matching','Na dobieranie'],['gaps','Luki'],['open','Otwarte'],['rozstrzygniecie','Rozstrzygnięcie'],['math_closed','Mat. zamknięte']];
@@ -603,7 +619,7 @@ function cells(n){ let s='<span class="cells">'; for(let i=0;i<n;i++) s+='<span 
 function writeLines(n){ n=Math.max(0,n|0); let s='<div class="writelines">'; for(let i=0;i<n;i++) s+='<div class="wl"></div>'; return s+'</div>'; }
 function EM_MARK(m){
   const lab=((m.formula||'').match(/\d{2}/g)||[]).slice(-1)[0]||'';
-  return `<svg width="86" height="70" viewBox="0 0 120 100" aria-hidden="true"><g fill="none" stroke="#6a4a9c" stroke-width="2.4"><polygon points="60,16 104,36 60,56 16,36"/><polygon points="60,30 104,50 60,70 16,50"/><polygon points="60,44 104,64 60,84 16,64"/></g><text x="60" y="58" text-anchor="middle" fill="#6a4a9c" font-family="Inter,sans-serif" font-weight="800" font-size="14" transform="rotate(-18 60 54)">EM ${lab}</text></svg>`;
+  return `<svg width="86" height="70" viewBox="0 0 120 100" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="60,16 104,36 60,56 16,36"/><polygon points="60,30 104,50 60,70 16,50"/><polygon points="60,44 104,64 60,84 16,64"/></g><text x="60" y="58" text-anchor="middle" fill="currentColor" font-family="Inter,sans-serif" font-weight="800" font-size="14" transform="rotate(-18 60 54)">${isAnnualExam(m)?'ER':'EM'} ${lab}</text></svg>`;
 }
 function instrLines(text){
   return String(text||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=> `<li>${richText(l).split('[SYMBOL]').join(CLOSED_SYMBOL)}</li>`).join('');
@@ -696,12 +712,13 @@ function answerHTML(t, showKey){
   }
   else if(t.type==='math_open'){ h+=`<div class="workbox grid" style="min-height:${t.heightmm||200}mm"></div>`; }
   else if(t.type==='essay'){ h+=writeLines(t.lines||16); }
-  else if(['open','gaps','source','image'].includes(t.type)){ h+=writeLines(t.lines||4); }
+  else if(['open','gaps','source','image'].includes(t.type)){ h+=writeLines(t.lines==null?4:t.lines); }
+  if(showKey && t.keyNote) h+=`<div class="match-key">Klucz: ${richText(t.keyNote)}</div>`;
   return h;
 }
 function renderSheet(showKey){
   const m=state.meta, sheet=document.getElementById('sheet'), max=totalPoints();
-  sheet.className='sheet mode-'+m.mode;
+  sheet.className='sheet mode-'+m.mode+(isAnnualExam(m)?' exam-blue':'');
   let h='';
   if(m.mode==='exam'){
     h+=`<div class="exam-top">
@@ -771,6 +788,223 @@ document.getElementById('btn-edit').onclick=showEditor;
 document.getElementById('chk-key').onchange=()=> renderSheet(document.getElementById('chk-key').checked);
 document.getElementById('btn-print').onclick=()=>{ if(!state.tasks.length){ alert('Dodaj przynajmniej jedno zadanie.'); return; } showPreview(); setTimeout(()=>window.print(),350); };
 
+/* ===== baza gotowych pytań =====
+   Zapis skrócony: t – typ, c – treść, p – punkty,
+   o/k – odpowiedzi i indeks poprawnej, s – zdania [treść, P/F],
+   l/r – dobieranie (kolumna I z kluczem, kolumna II), src – źródła [podpis, tekst],
+   n – liczba linii, a – klucz / odpowiedź wzorcowa. */
+const BANK = {
+  'Historia': {
+    'Starożytna Grecja i Rzym': [
+      {t:'closed', p:1, c:'W którym greckim polis w V w. p.n.e. ukształtowała się demokracja?', o:['w Sparcie','w Atenach','w Koryncie','w Tebach'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Starożytne igrzyska w Olimpii odbywały się ku czci Zeusa.','P'],['Według tradycji Rzym został założony w 753 r. p.n.e.','P'],['Cesarstwo zachodniorzymskie upadło w 1453 r.','F']]},
+      {t:'matching', p:3, c:'Przyporządkuj postaciom ich dokonania.', l:[['Perykles','C'],['Aleksander Wielki','A'],['Oktawian August','B']], r:['podbój imperium perskiego','wprowadzenie pryncypatu w Rzymie','rozkwit demokracji ateńskiej','spisanie Prawa XII tablic']},
+      {t:'gaps', p:2, n:0, c:'Uzupełnij zdania.\nWojny Rzymu z Kartaginą nazywamy wojnami ………………………… .\nWodzem kartagińskim, który przeprawił się z wojskiem przez Alpy, był ………………………… .', a:'punickimi; Hannibal'},
+      {t:'open', p:2, n:3, c:'Wyjaśnij, na czym polegał ostracyzm w demokracji ateńskiej.', a:'Sąd skorupkowy – głosowanie obywateli, w wyniku którego osoba uznana za zagrażającą demokracji była wygnana z Aten na 10 lat.'},
+    ],
+    'Polska Piastów': [
+      {t:'closed', p:1, c:'Chrzest Mieszka I odbył się w roku', o:['962','966','1000','1025'], k:1},
+      {t:'closed', p:1, c:'Pierwszym koronowanym królem Polski był', o:['Mieszko I','Bolesław Chrobry','Mieszko II','Kazimierz Odnowiciel'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Zjazd gnieźnieński odbył się w 1000 r.','P'],['Statut Bolesława Krzywoustego z 1138 r. zapoczątkował rozbicie dzielnicowe.','P'],['Ostatnim królem Polski z dynastii Piastów był Władysław Łokietek.','F']]},
+      {t:'matching', p:3, c:'Przyporządkuj wydarzeniom daty.', l:[['bitwa pod Legnicą','B'],['koronacja Władysława Łokietka','C'],['założenie Akademii Krakowskiej','A']], r:['1364','1241','1320','1410']},
+      {t:'open', p:2, n:4, c:'Podaj dwa skutki przyjęcia chrztu przez Mieszka I.', a:'Np. wejście państwa do kręgu cywilizacji łacińskiej; wzmocnienie władzy księcia i pozycji międzynarodowej; rozwój piśmiennictwa i organizacji kościelnej.'},
+      {t:'rozstrzygniecie', p:3, n:4, c:'Rozstrzygnij, czy rządy Kazimierza Wielkiego przyczyniły się do wzmocnienia państwa polskiego. Uzasadnij odpowiedź, podając dwa argumenty.', a:'Tak – np. kodyfikacja prawa (statuty), budowa zamków i lokacje miast, założenie Akademii Krakowskiej, reforma monety.'},
+    ],
+    'Rzeczpospolita Obojga Narodów i rozbiory': [
+      {t:'closed', p:1, c:'Unię lubelską, na mocy której powstała Rzeczpospolita Obojga Narodów, zawarto w roku', o:['1385','1466','1569','1573'], k:2},
+      {t:'closed', p:1, c:'Podczas pierwszej wolnej elekcji w 1573 r. królem Polski wybrano', o:['Stefana Batorego','Henryka Walezego','Zygmunta III Wazę','Jana III Sobieskiego'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Liberum veto pozwalało jednemu posłowi zerwać obrady sejmu.','P'],['Konstytucję 3 maja uchwalono w 1791 r.','P'],['W pierwszym rozbiorze Polski uczestniczyły Rosja, Prusy i Francja.','F']]},
+      {t:'matching', p:3, c:'Przyporządkuj wydarzeniom daty.', l:[['I rozbiór Polski','B'],['II rozbiór Polski','D'],['III rozbiór Polski','A']], r:['1795','1772','1791','1793']},
+      {t:'source', p:2, n:4, c:'Nazwij zasadę ustrojową wyrażoną w przytoczonym fragmencie i wyjaśnij jej znaczenie.', src:[['Ustawa Rządowa z 3 maja 1791 r., rozdz. V (fragment)','Wszelka władza społeczności ludzkiej początek swój bierze z woli narodu.']], a:'Zasada zwierzchnictwa (suwerenności) narodu – źródłem władzy w państwie jest naród, a nie monarcha.'},
+      {t:'open', p:2, n:4, c:'Wymień dwie reformy uchwalone przez Sejm Wielki.', a:'Np. zniesienie liberum veto i wolnej elekcji (Konstytucja 3 maja), prawo o miastach, powiększenie armii.'},
+    ],
+    'Ziemie polskie w XIX wieku': [
+      {t:'closed', p:1, c:'Powstanie listopadowe wybuchło w roku', o:['1794','1830','1846','1863'], k:1},
+      {t:'matching', p:3, c:'Przyporządkuj wydarzeniom daty.', l:[['zakończenie kongresu wiedeńskiego','C'],['Wiosna Ludów','A'],['wybuch powstania styczniowego','D']], r:['1848','1831','1815','1863']},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Królestwo Polskie utworzono na mocy decyzji kongresu wiedeńskiego.','P'],['Powstanie styczniowe miało charakter wojny partyzanckiej.','P'],['Germanizacja była polityką prowadzoną wobec Polaków w zaborze rosyjskim.','F']]},
+      {t:'open', p:2, n:4, c:'Wyjaśnij pojęcie „praca organiczna".', a:'Program pozytywistów: wzmacnianie społeczeństwa polskiego przez rozwój gospodarki, oświaty i kultury zamiast walki zbrojnej.'},
+      {t:'essay', c:'Oceń, która z dróg do niepodległości – walka zbrojna czy praca organiczna – przyniosła Polakom w XIX wieku większe korzyści. W uzasadnieniu odwołaj się do co najmniej trzech wydarzeń lub zjawisk.'},
+    ],
+    'II wojna światowa': [
+      {t:'closed', p:1, c:'II wojna światowa rozpoczęła się atakiem Niemiec na Polskę w dniu', o:['1 września 1939 r.','17 września 1939 r.','22 czerwca 1941 r.','8 maja 1945 r.'], k:0},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['17 września 1939 r. na Polskę napadł Związek Sowiecki.','P'],['Powstanie warszawskie wybuchło 1 sierpnia 1944 r.','P'],['Konferencja jałtańska odbyła się w 1943 r.','F']]},
+      {t:'matching', p:3, c:'Przyporządkuj wydarzeniom daty roczne.', l:[['atak Niemiec na ZSRS','A'],['lądowanie aliantów w Normandii','D'],['kapitulacja III Rzeszy','B']], r:['1941','1945','1943','1944']},
+      {t:'gaps', p:2, n:0, c:'Uzupełnij zdania.\nUkład podpisany 23 sierpnia 1939 r. przez III Rzeszę i ZSRS nazywamy paktem ………………………… .\nNajwiększą organizacją zbrojną Polskiego Państwa Podziemnego była od 1942 r. ………………………… .', a:'Ribbentrop–Mołotow; Armia Krajowa'},
+      {t:'open', p:2, n:4, c:'Wymień dwa skutki II wojny światowej dla Polski.', a:'Np. ogromne straty ludności i zniszczenia, zmiana granic (utrata Kresów Wschodnich, przyłączenie ziem zachodnich i północnych), uzależnienie od ZSRS.'},
+      {t:'rozstrzygniecie', p:3, n:4, c:'Rozstrzygnij, czy decyzje konferencji jałtańskiej były korzystne dla Polski. Uzasadnij odpowiedź, odwołując się do dwóch postanowień.', a:'Nie – np. oparcie granicy wschodniej na linii Curzona, pozostawienie Polski w strefie wpływów ZSRS, rząd tworzony na bazie władz komunistycznych.'},
+    ],
+  },
+
+  'Wiedza o społeczeństwie': {
+    'Człowiek i społeczeństwo': [
+      {t:'closed', p:1, c:'Zgodnie z piramidą potrzeb Abrahama Maslowa do potrzeb fizjologicznych należy', o:['szacunek','sen','samorealizacja','przynależność'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Rodzina jest grupą pierwotną.','P'],['Socjalizacja zachodzi wyłącznie w dzieciństwie.','F'],['Przestrzeganie norm prawnych jest zabezpieczone przymusem państwowym.','P']]},
+      {t:'matching', p:3, c:'Przyporządkuj pojęciom ich wyjaśnienia.', l:[['konformizm','B'],['stereotyp','D'],['tolerancja','A']], r:['poszanowanie cudzych poglądów i odmienności','dostosowywanie zachowań do norm obowiązujących w grupie','wrogie działanie wobec członków innej grupy','uproszczony i utrwalony obraz pewnej grupy ludzi']},
+      {t:'gaps', p:2, n:0, c:'Uzupełnij zdania.\nProces, w którym człowiek uczy się norm i wartości obowiązujących w społeczeństwie, to ………………………… .\nZbiór zachowań oczekiwanych od osoby zajmującej określoną pozycję to ………………………… społeczna.', a:'socjalizacja; rola'},
+      {t:'open', p:3, n:4, c:'Wymień trzy funkcje rodziny.', a:'Np. prokreacyjna, opiekuńczo-wychowawcza, socjalizacyjna, ekonomiczna, emocjonalna.'},
+    ],
+    'Państwo i demokracja': [
+      {t:'closed', p:1, c:'Cechą państwa NIE jest', o:['terytorialność','suwerenność','przymusowość','dobrowolność przynależności'], k:3},
+      {t:'closed', p:1, c:'Twórcą koncepcji trójpodziału władzy jest', o:['Niccolò Machiavelli','Monteskiusz','Thomas Hobbes','Karol Marks'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Referendum jest formą demokracji bezpośredniej.','P'],['W państwie totalitarnym istnieje pluralizm polityczny.','F'],['W demokracji przedstawicielskiej obywatele sprawują władzę za pośrednictwem wybranych reprezentantów.','P']]},
+      {t:'matching', p:3, c:'Przyporządkuj reżimom politycznym ich opisy.', l:[['demokracja','C'],['autorytaryzm','A'],['totalitaryzm','B']], r:['władza w rękach jednostki lub wąskiej grupy, ograniczone prawa polityczne, brak ingerencji w większość sfer życia prywatnego','pełna kontrola państwa nad życiem obywateli, jedna oficjalna ideologia, terror','wolne wybory, pluralizm polityczny, ochrona praw mniejszości','państwo, w którym władzę sprawują duchowni']},
+      {t:'source', p:4, n:5, c:'Na podstawie źródła wymień dwie formy sprawowania władzy przez Naród i podaj po jednym przykładzie każdej z nich.', src:[['Konstytucja Rzeczypospolitej Polskiej z 2 kwietnia 1997 r., art. 4','1. Władza zwierzchnia w Rzeczypospolitej Polskiej należy do Narodu.\n2. Naród sprawuje władzę przez swoich przedstawicieli lub bezpośrednio.']], a:'Przedstawicielska – np. wybory do Sejmu i Senatu; bezpośrednia – np. referendum, obywatelska inicjatywa ustawodawcza.'},
+      {t:'rozstrzygniecie', p:2, n:4, c:'Rozstrzygnij, czy niska frekwencja wyborcza stanowi zagrożenie dla demokracji. Uzasadnij odpowiedź.', a:'Uznaje się każde rozstrzygnięcie z trafnym uzasadnieniem (np. Tak – słabsza legitymizacja władzy, większy wpływ zdyscyplinowanych mniejszości).'},
+    ],
+    'Ustrój Rzeczypospolitej Polskiej': [
+      {t:'closed', p:1, c:'Kadencja Prezydenta Rzeczypospolitej Polskiej trwa', o:['4 lata','5 lat','6 lat','7 lat'], k:1},
+      {t:'closed', p:1, c:'Sejm Rzeczypospolitej Polskiej składa się z', o:['100 posłów','360 posłów','460 posłów','560 posłów'], k:2},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Senat liczy 100 senatorów.','P'],['Prezesa Rady Ministrów powołuje Marszałek Sejmu.','F'],['Trybunał Konstytucyjny orzeka o zgodności ustaw z Konstytucją.','P']]},
+      {t:'matching', p:3, c:'Przyporządkuj organom rodzaj sprawowanej władzy.', l:[['Sejm i Senat','B'],['Rada Ministrów','C'],['Sąd Najwyższy','A']], r:['władza sądownicza','władza ustawodawcza','władza wykonawcza','organ kontroli państwowej']},
+      {t:'source', p:2, n:4, c:'Nazwij zasadę ustrojową opisaną w źródle i wyjaśnij, czemu ona służy.', src:[['Konstytucja Rzeczypospolitej Polskiej z 2 kwietnia 1997 r., art. 10','1. Ustrój Rzeczypospolitej Polskiej opiera się na podziale i równowadze władzy ustawodawczej, władzy wykonawczej i władzy sądowniczej.\n2. Władzę ustawodawczą sprawują Sejm i Senat, władzę wykonawczą Prezydent Rzeczypospolitej Polskiej i Rada Ministrów, a władzę sądowniczą sądy i trybunały.']], a:'Zasada trójpodziału (podziału i równowagi) władzy – zapobiega skupieniu władzy w jednym ośrodku i jej nadużywaniu.'},
+      {t:'open', p:4, n:6, c:'Przedstaw w punktach drogę ustawy od wniesienia projektu do jej ogłoszenia (co najmniej cztery etapy).', a:'Inicjatywa ustawodawcza → trzy czytania w Sejmie i uchwalenie → rozpatrzenie przez Senat → ewentualne ponowne głosowanie w Sejmie nad stanowiskiem Senatu → podpis Prezydenta → ogłoszenie w Dzienniku Ustaw.'},
+    ],
+    'Prawa człowieka': [
+      {t:'closed', p:1, c:'Powszechną Deklarację Praw Człowieka uchwaliło Zgromadzenie Ogólne ONZ w roku', o:['1945','1948','1950','1989'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Prawa człowieka są niezbywalne.','P'],['Europejski Trybunał Praw Człowieka ma siedzibę w Strasburgu.','P'],['Rzecznika Praw Obywatelskich powołuje Prezydent RP.','F']]},
+      {t:'matching', p:3, c:'Przyporządkuj generacjom praw człowieka ich charakterystykę.', l:[['I generacja','C'],['II generacja','A'],['III generacja','B']], r:['prawa ekonomiczne, socjalne i kulturalne','prawa kolektywne (solidarnościowe)','prawa osobiste i polityczne','obowiązki obywatelskie']},
+      {t:'open', p:2, n:3, c:'Podaj dwa przykłady wolności lub praw osobistych zapisanych w Konstytucji RP.', a:'Np. prawo do ochrony życia, nietykalność osobista, prawo do sądu, wolność sumienia i religii, ochrona życia prywatnego.'},
+      {t:'rozstrzygniecie', p:2, n:4, c:'Rozstrzygnij, czy w państwie demokratycznym wolność słowa może podlegać ograniczeniom. Uzasadnij odpowiedź.', a:'Tak – ograniczenia mogą być ustanawiane tylko w ustawie i gdy są konieczne m.in. dla ochrony praw innych osób, bezpieczeństwa lub porządku publicznego (art. 31 ust. 3 Konstytucji RP).'},
+    ],
+    'Unia Europejska i organizacje międzynarodowe': [
+      {t:'closed', p:1, c:'Polska przystąpiła do Unii Europejskiej w roku', o:['1999','2004','2007','2009'], k:1},
+      {t:'closed', p:1, c:'Oficjalną siedzibą Parlamentu Europejskiego jest', o:['Bruksela','Strasburg','Haga','Genewa'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Polska jest członkiem NATO od 1999 r.','P'],['Przynależność do strefy Schengen oznacza posługiwanie się wspólną walutą.','F'],['Radę Bezpieczeństwa ONZ tworzy pięciu członków stałych i dziesięciu niestałych.','P']]},
+      {t:'matching', p:3, c:'Przyporządkuj organizacjom miasta, w których znajdują się ich główne siedziby.', l:[['ONZ','D'],['NATO','A'],['Rada Europy','B']], r:['Bruksela','Strasburg','Genewa','Nowy Jork']},
+      {t:'open', p:2, n:4, c:'Wymień dwie korzyści wynikające z członkostwa Polski w Unii Europejskiej.', a:'Np. swobodny przepływ osób, towarów, usług i kapitału; fundusze unijne; możliwość nauki i pracy w innych państwach UE.'},
+    ],
+  },
+
+  'Matematyka': {
+    'Liczby rzeczywiste, potęgi i procenty': [
+      {t:'math_closed', p:1, c:'Wartość wyrażenia $2^{-3}\\cdot 2^{5}$ jest równa', o:['$\\frac{1}{4}$','$2$','$4$','$16$'], k:2},
+      {t:'math_closed', p:1, c:'Liczba $\\sqrt{50}-\\sqrt{18}$ jest równa', o:['$2\\sqrt{2}$','$\\sqrt{32}$','$8\\sqrt{2}$','$8$'], k:0},
+      {t:'math_closed', p:1, c:'Cenę towaru równą 240 zł obniżono o 15%. Nowa cena wynosi', o:['204 zł','216 zł','225 zł','255 zł'], k:0},
+      {t:'math_closed', p:1, c:'Liczba $\\log_{2} 8$ jest równa', o:['$2$','$3$','$4$','$16$'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Liczba $\\sqrt{2}$ jest niewymierna.','P'],['Liczba $0{,}(3)$ jest równa $\\frac{1}{3}$.','P'],['Zachodzi równość $|-5|=-5$.','F']]},
+      {t:'math_open', p:3, h:90, c:'Cenę towaru podwyższono o 20%, a następnie nową cenę obniżono o 20%. Oblicz, o ile procent cena końcowa różni się od ceny początkowej.', a:'$1{,}2\\cdot 0{,}8=0{,}96$ – cena końcowa jest o 4% niższa od początkowej.'},
+    ],
+    'Równania i nierówności': [
+      {t:'math_closed', p:1, c:'Rozwiązaniem równania $3x-7=2x+5$ jest liczba', o:['$-12$','$-2$','$2$','$12$'], k:3},
+      {t:'math_closed', p:1, c:'Zbiorem rozwiązań nierówności $-2x+6>0$ jest', o:['$x<3$','$x>3$','$x<-3$','$x>-3$'], k:0},
+      {t:'math_closed', p:1, c:'Rozwiązaniami równania $x^{2}-5x+6=0$ są liczby', o:['$-2$ i $-3$','$2$ i $3$','$1$ i $6$','$-1$ i $6$'], k:1},
+      {t:'math_closed', p:1, c:'Równanie $x^{2}+4=0$ w zbiorze liczb rzeczywistych', o:['nie ma rozwiązań','ma jedno rozwiązanie','ma dwa rozwiązania','ma nieskończenie wiele rozwiązań'], k:0},
+      {t:'math_open', p:3, h:100, c:'Rozwiąż nierówność $x^{2}-4x-5\\leq 0$.', a:'Miejsca zerowe: $-1$ i $5$; rozwiązanie: $x\\in\\langle -1,\\,5\\rangle$.'},
+      {t:'math_open', p:3, h:90, c:'Rozwiąż układ równań: $2x+y=7$ oraz $x-y=2$.', a:'$x=3$, $y=1$.'},
+    ],
+    'Funkcja liniowa i kwadratowa': [
+      {t:'math_closed', p:1, c:'Miejscem zerowym funkcji $f(x)=2x-6$ jest liczba', o:['$-6$','$-3$','$3$','$6$'], k:2},
+      {t:'math_closed', p:1, c:'Prosta o równaniu $y=-3x+2$ przecina oś $Oy$ w punkcie', o:['$(0,-3)$','$(0,2)$','$(2,0)$','$(-3,0)$'], k:1},
+      {t:'math_closed', p:1, c:'Wierzchołkiem paraboli o równaniu $y=(x-2)^{2}+3$ jest punkt', o:['$(-2,3)$','$(2,3)$','$(2,-3)$','$(3,2)$'], k:1},
+      {t:'truefalse', p:3, c:'Oceń prawdziwość zdań.', s:[['Funkcja $f(x)=-2x+1$ jest malejąca.','P'],['Funkcja $f(x)=x^{2}-4$ ma dwa miejsca zerowe.','P'],['Proste $y=2x+1$ i $y=-2x+1$ są równoległe.','F']]},
+      {t:'math_open', p:3, h:100, c:'Wyznacz wzór funkcji liniowej, której wykres przechodzi przez punkty $A=(1,3)$ i $B=(3,7)$.', a:'$a=2$, $b=1$, czyli $f(x)=2x+1$.'},
+      {t:'math_open', p:3, h:100, c:'Wyznacz najmniejszą wartość funkcji $f(x)=x^{2}-6x+5$ oraz argument, dla którego funkcja ją przyjmuje.', a:'Dla $x=3$ funkcja przyjmuje wartość najmniejszą $f(3)=-4$.'},
+    ],
+    'Planimetria': [
+      {t:'math_closed', p:1, c:'Przyprostokątne trójkąta prostokątnego mają długości 6 i 8. Przeciwprostokątna tego trójkąta ma długość', o:['$10$','$12$','$14$','$100$'], k:0},
+      {t:'math_closed', p:1, c:'Pole koła o promieniu 3 jest równe', o:['$3\\pi$','$6\\pi$','$9\\pi$','$18\\pi$'], k:2},
+      {t:'math_closed', p:1, c:'Suma miar kątów wewnętrznych pięciokąta wypukłego jest równa', o:['$360^{\\circ}$','$450^{\\circ}$','$540^{\\circ}$','$720^{\\circ}$'], k:2},
+      {t:'math_closed', p:1, c:'Przekątna kwadratu o boku długości 5 ma długość', o:['$5\\sqrt{2}$','$5\\sqrt{3}$','$10$','$25$'], k:0},
+      {t:'math_open', p:4, h:110, c:'W trójkącie prostokątnym jedna z przyprostokątnych ma długość 5, a przeciwprostokątna ma długość 13. Oblicz pole i obwód tego trójkąta.', a:'Druga przyprostokątna: $12$; pole: $30$; obwód: $30$.'},
+      {t:'math_open', p:2, h:80, c:'Oblicz pole trójkąta równobocznego o boku długości 6.', a:'$P=\\frac{6^{2}\\sqrt{3}}{4}=9\\sqrt{3}$.'},
+    ],
+    'Ciągi i rachunek prawdopodobieństwa': [
+      {t:'math_closed', p:1, c:'W ciągu arytmetycznym $(a_n)$ dane są $a_1=3$ oraz $r=4$. Wyraz $a_{10}$ jest równy', o:['$36$','$39$','$40$','$43$'], k:1},
+      {t:'math_closed', p:1, c:'W ciągu geometrycznym $(a_n)$ dane są $a_1=2$ oraz $q=3$. Wyraz $a_4$ jest równy', o:['$18$','$24$','$54$','$162$'], k:2},
+      {t:'math_closed', p:1, c:'Rzucamy raz symetryczną sześcienną kostką do gry. Prawdopodobieństwo wyrzucenia liczby oczek podzielnej przez 3 jest równe', o:['$\\frac{1}{6}$','$\\frac{1}{3}$','$\\frac{1}{2}$','$\\frac{2}{3}$'], k:1},
+      {t:'math_closed', p:1, c:'Średnia arytmetyczna liczb 2, 4, 6, 8, 10 jest równa', o:['$5$','$6$','$7$','$30$'], k:1},
+      {t:'math_open', p:3, h:100, c:'Oblicz sumę dwudziestu początkowych wyrazów ciągu arytmetycznego, w którym $a_1=5$ i $r=2$.', a:'$a_{20}=43$, $S_{20}=\\frac{5+43}{2}\\cdot 20=480$.'},
+      {t:'math_open', p:3, h:100, c:'Rzucamy dwa razy symetryczną sześcienną kostką do gry. Oblicz prawdopodobieństwo zdarzenia, że suma wyrzuconych oczek jest równa 8.', a:'Sprzyjające wyniki: $(2,6),(3,5),(4,4),(5,3),(6,2)$; $P=\\frac{5}{36}$.'},
+    ],
+  },
+};
+
+function bankToTask(q){
+  const t = newTask(q.t);
+  t.content = q.c || '';
+  if(q.p != null) t.points = q.p;
+  if(q.o){ t.options = q.o.slice(); t.correct = (q.k == null ? null : q.k); }
+  if(q.s) t.statements = q.s.map(([text,ans])=>({text,ans}));
+  if(q.l){ t.left = q.l.map(([text,correct])=>({text,correct})); t.right = q.r.slice(); }
+  if(q.src) t.sources = q.src.map(([label,text])=>({label,text}));
+  if(q.n != null) t.lines = q.n;
+  if(q.h) t.heightmm = q.h;
+  if(q.t==='math_open') t.fullpage = false;
+  if(q.t==='math_closed') t.scratchmm = 35;
+  if(q.a){ if(q.t==='rozstrzygniecie') t.answer = q.a; else t.keyNote = q.a; }
+  return t;
+}
+function bankAnswer(q){
+  if(q.o) return q.k == null ? '' : String.fromCharCode(65+q.k);
+  if(q.s) return q.s.map(x=>x[1]).join(', ');
+  if(q.l) return q.l.map((x,i)=>`${i+1}–${x[1]}`).join(', ');
+  return q.a || '';
+}
+function bankDetail(q){
+  if(q.o) return q.o.map((o,i)=>`${String.fromCharCode(65+i)}. ${o}`).join('   ');
+  if(q.s) return q.s.map((x,i)=>`${i+1}. ${x[0]}`).join('  ');
+  if(q.l) return q.l.map(x=>x[0]).join(' · ') + '  ⇄  ' + q.r.join(' · ');
+  if(q.src) return 'Źródło: ' + q.src.map(x=>x[0]).join('; ');
+  return '';
+}
+function typesetMath(node){
+  if(window.MathJax && MathJax.typesetPromise){ MathJax.typesetClear && MathJax.typesetClear([node]); MathJax.typesetPromise([node]).catch(()=>{}); }
+}
+
+const bankSel = { subject:null, section:null };
+function addFromBank(list){
+  list.forEach(q=> state.tasks.push(bankToTask(q)));
+  renderTasks();
+}
+function renderBank(){
+  const box = document.getElementById('bank'); if(!box) return;
+  const subjects = Object.keys(BANK);
+  if(!subjects.includes(bankSel.subject)) bankSel.subject = subjects.includes(state.meta.subject) ? state.meta.subject : subjects[0];
+  const sections = Object.keys(BANK[bankSel.subject]);
+  if(!sections.includes(bankSel.section)) bankSel.section = sections[0];
+  const list = BANK[bankSel.subject][bankSel.section];
+  const total = list.reduce((a,q)=> a + taskPoints(bankToTask(q)), 0);
+
+  box.innerHTML = `
+    <h2>Baza gotowych pytań</h2>
+    <div class="bank-bar">
+      <label class="f">Przedmiot<select id="bank-subject">${subjects.map(s=>`<option ${s===bankSel.subject?'selected':''}>${esc(s)}</option>`).join('')}</select></label>
+      <label class="f">Dział<select id="bank-section">${sections.map(s=>`<option ${s===bankSel.section?'selected':''}>${esc(s)}</option>`).join('')}</select></label>
+      <button class="btn ghost" id="bank-all">Dodaj cały dział (${list.length} zad., ${total} pkt)</button>
+    </div>
+    <div class="hintline" style="margin:0 0 4px">Pytanie trafia do arkusza jako kopia — po dodaniu możesz je dowolnie zmienić. Odpowiedzi widać tylko tutaj i w podglądzie z kluczem.</div>
+    <div id="bank-list"></div>`;
+  box.querySelector('#bank-subject').onchange = e=>{ bankSel.subject = e.target.value; bankSel.section = null; renderBank(); };
+  box.querySelector('#bank-section').onchange = e=>{ bankSel.section = e.target.value; renderBank(); };
+  box.querySelector('#bank-all').onclick = e=>{ addFromBank(list); flashAdded(e.currentTarget, 'Dodano cały dział ✓'); };
+
+  const out = box.querySelector('#bank-list');
+  list.forEach(q=>{
+    const info = TYPES[q.t], ans = bankAnswer(q), det = bankDetail(q);
+    const pts = taskPoints(bankToTask(q));
+    const row = el(`<div class="bank-row">
+      <span class="ic" title="${esc(info.label)}">${esc(info.icon)}</span>
+      <div class="bank-q">
+        <div>${esc(q.c).replace(/\n/g,'<br>')}</div>
+        ${det?`<div class="det">${esc(det)}</div>`:''}
+        ${ans?`<div class="ans"><b>Odp.:</b> ${esc(ans)}</div>`:''}
+      </div>
+      <span class="bank-meta">${pts} pkt</span>
+      <button class="btn ghost sm">Dodaj</button>
+    </div>`);
+    row.querySelector('button').onclick = e=>{ addFromBank([q]); flashAdded(e.currentTarget, 'Dodano ✓'); };
+    out.appendChild(row);
+  });
+  typesetMath(out);
+}
+function flashAdded(btn, text){
+  const old = btn.textContent; btn.textContent = text; btn.disabled = true;
+  setTimeout(()=>{ btn.textContent = old; btn.disabled = false; }, 1100);
+}
+/* zmiana przedmiotu arkusza przełącza też bazę pytań */
+settings.addEventListener('change', e=>{ if(e.target.id==='s-subject'){ bankSel.subject = e.target.value; bankSel.section = null; renderBank(); } });
+window.addEventListener('load', ()=> renderBank());   /* wzory w bazie — po załadowaniu MathJax */
+
 /* ===== zapis / wczytanie ===== */
 document.getElementById('btn-save').onclick=()=>{
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -803,7 +1037,7 @@ document.getElementById('file-load').onchange=e=>{
 };
 
 /* ===== boot ===== */
-initMeta(); renderSettings(); renderTasks();
+initMeta(); renderSettings(); renderTasks(); renderBank();
 </script>
 </body>
 </html>
