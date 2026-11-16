@@ -108,8 +108,9 @@
   .sheet{background:#fff; color:#111; font-family:var(--sans); width:210mm; max-width:100%;
     margin:0 auto 40px; padding:16mm 15mm; box-shadow:0 3px 40px rgba(20,24,31,.14); border:1px solid #e3e3e3; line-height:1.5; font-size:11.6pt}
   .sheet.mode-test{ --ac:#35707a; --ac-d:#2a5960; --ac-soft:#e7f0f1 }
-  .sheet.mode-exam{ --ac:#6a4a9c; --ac-d:#523a7d; --ac-soft:#ece3f5 }
-  .sheet.mode-exam.exam-blue{ --ac:#3d74d6; --ac-d:#2a55a8; --ac-soft:#e4ecfb }
+  .sheet.mode-exam{ --ac:#6a4a9c; --ac-d:#523a7d; --ac-soft:#ece3f5; --ac-band:#d8c2ea }
+  .sheet.mode-exam.exam-blue{ --ac:#3d74d6; --ac-d:#2a55a8; --ac-soft:#e4ecfb; --ac-band:#c6d8f7 }
+  .sheet{-webkit-print-color-adjust:exact; print-color-adjust:exact}
 
   /* --- TEST --- */
   .test-head{background:var(--ac); color:#fff; padding:18px 22px; border-radius:5px}
@@ -122,24 +123,42 @@
   .test-identity .fld .ln{border-bottom:1px solid #111; min-width:70px; display:inline-block; height:14px}
 
   /* --- EXAM (matura style) --- */
-  .exam-top{display:flex; justify-content:space-between; gap:16px; font-size:8pt; color:#6d6d6d}
-  .exam-top .brand{display:flex; align-items:center; gap:8px; color:var(--ac-d); font-weight:800; letter-spacing:.04em; font-size:9pt}
-  .exam-fill{border:1px solid var(--ac); border-radius:3px; margin-top:8px; overflow:hidden}
-  .exam-fill .bar{background:var(--ac-soft); color:var(--ac-d); font-weight:700; font-size:8.5pt; letter-spacing:.1em; padding:4px 12px; text-transform:uppercase}
-  .codes{display:flex; gap:26px; padding:9px 12px; align-items:center; flex-wrap:wrap}
-  .codes .grp{display:flex; align-items:center; gap:8px; font-size:9pt; font-weight:700}
-  .cells{display:flex; gap:3px}
-  .cell{width:15px; height:20px; border:1px solid #555; border-radius:2px}
-  .exam-band{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:16px; flex-wrap:wrap}
-  .exam-band .wt{background:var(--ac-soft); color:var(--ac-d); font-weight:800; font-size:13pt; padding:7px 16px; border-radius:3px}
-  .exam-band .fm{color:var(--ac-d); font-weight:800; font-size:12pt; font-style:italic}
-  .exam-title{background:var(--ac); color:#fff; border-radius:4px; padding:16px 20px; margin-top:12px}
-  .exam-title .subj{font-size:27pt; font-weight:800; letter-spacing:.01em; line-height:1.05}
-  .exam-title .lvl{display:inline-block; margin-top:10px; background:rgba(255,255,255,.2); padding:4px 14px; border-radius:3px; font-size:13pt; font-weight:700}
-  .exam-topic{font-size:12pt; margin-top:12px; font-weight:600}
-  .exam-topic .lab{color:#555; font-weight:400; font-style:italic; margin-right:6px}
-  .exam-meta{margin-top:14px; font-size:11.5pt; line-height:1.95}
-  .exam-meta b{font-size:12.5pt}
+  .exam-cover{min-height:262mm; display:flex; flex-direction:column; break-after:page}
+  .ec-top{display:flex; justify-content:space-between; align-items:flex-start; gap:16px}
+  .ec-brand{display:flex; align-items:center; gap:10px; color:#111}
+  .ec-brand b{display:block; font-size:15pt; letter-spacing:.3em; line-height:1.1}
+  .ec-brand span{display:block; font-size:7.5pt; font-weight:700; letter-spacing:.12em}
+  .ec-legal{max-width:62mm; font-size:7pt; color:#333; line-height:1.35}
+  .ec-row{display:flex; gap:10mm; align-items:stretch; margin-top:7mm}
+  .ec-fill{flex:1}
+  .ec-fill .bar, .ec-zn .bar{background:var(--ac-band); font-weight:700; font-size:9.5pt; letter-spacing:.02em; padding:3px 10px; text-align:center}
+  .codes{display:flex; gap:9mm; padding:5mm 5mm 0; align-items:flex-end}
+  .codes .grp{display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10pt; font-weight:700}
+  .cells{display:flex}
+  .cell{width:6.2mm; height:8.6mm; border:1px solid #333; margin-left:-1px}
+  .ec-sticker{width:62mm; border:1.5px solid #111; padding:4mm 3mm; text-align:center; font-size:8.5pt; font-style:italic; line-height:1.4; display:flex; flex-direction:column; justify-content:center}
+  .ec-sticker b.code{font-style:normal; color:#d11; font-size:11pt; white-space:nowrap}
+  .ec-band{display:flex; border:2px solid var(--ac); margin-top:14mm}
+  .ec-band .wt{flex:1; background:#fff; color:#111; font-weight:800; font-size:19pt; padding:2mm 3mm; line-height:1.15}
+  .ec-band .fm{background:var(--ac); color:#fff; font-weight:800; font-style:italic; font-size:19pt; padding:2mm 4mm; display:flex; align-items:center; white-space:nowrap}
+  .ec-title{border:3px solid var(--ac); margin-top:13mm}
+  .ec-title .subj{background:var(--ac); color:#fff; font-weight:800; line-height:1.08; padding:3mm 3mm 4mm; letter-spacing:.01em}
+  .ec-title .lvl{background:#fff; color:var(--ac); font-weight:800; font-size:31pt; line-height:1.15; padding:1mm 3mm 3mm}
+  .ec-symbol{align-self:flex-end; border:3px solid var(--ac); border-top:0; padding:1mm 3mm 2mm; min-width:56mm}
+  .ec-symbol i{display:block; color:var(--ac); font-size:13pt}
+  .ec-symbol b{font-size:11pt; letter-spacing:.02em}
+  .ec-info{display:flex; gap:8mm; align-items:flex-start; margin-top:6mm}
+  .ec-meta{flex:1; font-size:14pt; line-height:1.75}
+  .ec-meta .lb{font-variant:small-caps; letter-spacing:.01em}
+  .ec-meta b{font-size:16pt}
+  .ec-zn{width:72mm; border:1.5px solid #111}
+  .ec-zn .b{display:flex; gap:6px; align-items:flex-start; font-size:8.5pt; padding:3mm; line-height:1.3}
+  .ec-zn .chkbox{border-color:#111; flex:0 0 auto; margin:1px 0 0}
+  .ec-before{margin-top:9mm; font-size:10.5pt}
+  .ec-before b{display:block; margin-bottom:3mm}
+  .ec-before ol{margin:0; padding-left:7mm}
+  .ec-before li{margin-bottom:3mm; padding-left:1mm}
+  .ec-foot{margin-top:auto; padding-top:6mm; font-size:7pt; color:#444; line-height:1.4}
 
   .instruction{font-size:10.5pt; color:#1a1a1a; padding:10px 0 2px; margin-top:12px}
   .instruction .ih{font-weight:700; margin-bottom:4px}
@@ -178,6 +197,14 @@
   .scratch .sl{font-size:9pt; font-weight:700; letter-spacing:.08em; color:#666; text-transform:uppercase; margin-bottom:4px}
   .subtask{margin-top:12px; padding-left:14px; border-left:2px solid var(--ac-soft)}
   .sub-head{display:flex; align-items:baseline; gap:9px; margin-bottom:2px}
+  /* tryb egzaminu: nagłówek zadania na kolorowym pasku, jak w arkuszu maturalnym */
+  .mode-exam .task{border-bottom:0; padding:9px 0 13px}
+  .mode-exam .t-head, .mode-exam .sub-head{background:var(--ac-band); padding:2px 8px; align-items:center; gap:8px; margin-bottom:5px; font-weight:700; font-size:12pt}
+  .mode-exam .t-head .t-pts, .mode-exam .sub-head .t-pts{margin-left:0; color:#111; font-weight:700; font-size:12pt}
+  .mode-exam .t-head .t-title{font-size:12pt}
+  .mode-exam .t-head .csym, .mode-exam .sub-head .csym{margin:0 2px}
+  .mode-exam .t-ic{margin-left:auto; background:transparent; border-color:rgba(0,0,0,.28); color:#333}
+  .mode-exam .subtask{border-left:0; padding-left:0; margin-top:14px}
   .sub-no{font-weight:700; font-size:11.5pt}
   .rz-lab{font-weight:600; margin-top:6px}
   .task-fig{margin:8px 0}
@@ -229,7 +256,7 @@
     body .stage{display:block}
     .sheet{box-shadow:none; border:0; margin:0; width:auto; max-width:none; padding:0}
     @page{size:A4; margin:12mm}
-    .task,.workbox,.task-src,.exam-title,.exam-fill,.test-head{break-inside:avoid}
+    .task,.workbox,.task-src,.test-head{break-inside:avoid}
     .t-head{break-after:avoid}
     .fullpage{break-before:page}
   }
@@ -312,6 +339,7 @@ const WORKTYPES = {
 const isAnnualExam = m => m.mode==='exam' && /roczny/i.test(m.workType||'');
 const DEF_INSTR = 'Przeczytaj uważnie polecenia. Pisz czytelnie. W zadaniach zamkniętych zaznacz poprawną odpowiedź. Nie używaj korektora.';
 const DEF_EXAM_INSTR = 'Sprawdź, czy arkusz egzaminacyjny zawiera wszystkie kolejno ponumerowane strony. Ewentualny brak zgłoś przewodniczącemu zespołu nadzorującego egzamin.\nNa pierwszej stronie arkusza oraz na karcie odpowiedzi wpisz swój numer PESEL i przyklej naklejkę z kodem.\nSymbol [SYMBOL] zamieszczony przy zadaniu zamkniętym oznacza, że rozwiązanie tego zadania musisz przenieść na kartę odpowiedzi. Ocenie podlegają wyłącznie odpowiedzi zaznaczone na karcie odpowiedzi.\nOdpowiedzi do zadań zamkniętych oznaczonych symbolem [SYMBOL] zaznacz na karcie odpowiedzi w części przeznaczonej dla zdającego: zamaluj pola do tego przeznaczone; błędne zaznaczenie otocz kółkiem i zaznacz właściwe.\nOdpowiedzi do pozostałych zadań zapisz w miejscu na to przeznaczonym przy każdym zadaniu.\nPisz czytelnie. Używaj długopisu/pióra tylko z czarnym tuszem/atramentem.\nNie używaj korektora, a błędne zapisy wyraźnie przekreśl.\nNie wpisuj żadnych znaków w tabelkach przeznaczonych dla egzaminatora. Tabelki są umieszczone na marginesie przy wybranych zadaniach.\nPamiętaj, że zapisy w brudnopisie nie będą oceniane.';
+const DEF_COVER = 'Sprawdź, czy nauczyciel przekazał Ci właściwy arkusz egzaminacyjny, tj. arkusz we właściwej formule, z właściwego przedmiotu na właściwym poziomie.\nJeżeli przekazano Ci niewłaściwy arkusz – natychmiast zgłoś to nauczycielowi.\nJeżeli przekazano Ci właściwy arkusz – zapoznaj się z instrukcją na stronie 2.';
 const isClosedType = t => ['closed','math_closed','truefalse','matching'].includes(t);
 const CLOSED_SYMBOL = '<svg class="csym" viewBox="0 0 92 30" aria-hidden="true"><g fill="none" stroke="#c0392b" stroke-width="3"><rect x="2" y="7" width="16" height="16"/><rect x="20" y="7" width="16" height="16"/><rect x="38" y="7" width="16" height="16"/><rect x="56" y="7" width="16" height="16"/></g><path d="M58 25 L88 3" stroke="#2f5aa8" stroke-width="5" stroke-linecap="round"/><path d="M58 25 l8 1 -2 -7 z" fill="#2f5aa8"/></svg>';
 
@@ -347,7 +375,8 @@ function newSub(type){
 function initMeta(){
   state.meta = { mode:'test', subject:'Historia', workType:'Sprawdzian', level:'',
     formula:'Formuła 2023', topic:'', subtitle:'', klasa:'', duration:'45', date:'',
-    instruction:DEF_INSTR, examInstruction:DEF_EXAM_INSTR, answerCard:true, brudnopis:false };
+    instruction:DEF_INSTR, examInstruction:DEF_EXAM_INSTR, answerCard:true, brudnopis:false,
+    startTime:'9:00', symbol:'', stickerCode:'', coverNotes:DEF_COVER };
 }
 
 /* ===== settings (zależne od trybu) ===== */
@@ -364,6 +393,10 @@ function renderSettings(){
     modeFields=`
       <label class="f">Poziom<select id="s-level">${lv.map(x=>`<option value="${esc(x)}" ${m.level===x?'selected':''}>${x?esc(x):'— brak —'}</option>`).join('')}</select></label>
       <label class="f">Formuła / oznaczenie<input id="s-formula" value="${esc(m.formula)}" placeholder="np. Formuła 2023"></label>
+      <label class="f">Godzina rozpoczęcia<input id="s-start" value="${esc(m.startTime)}" placeholder="np. 9:00"></label>
+      <label class="f">Symbol arkusza<input id="s-symbol" value="${esc(m.symbol)}" placeholder="np. HIS-PP-01-2611"></label>
+      <label class="f full">Kod na naklejce (opcjonalnie)<input id="s-sticker" value="${esc(m.stickerCode)}" placeholder="np. H-100"></label>
+      <label class="f full">Strona tytułowa: „Przed rozpoczęciem pracy z arkuszem" (każdy punkt w nowej linii)<textarea id="s-cover" style="min-height:96px">${esc(m.coverNotes)}</textarea></label>
       <label class="f full">Instrukcja dla zdającego (osobna strona)<textarea id="s-einstruction" style="min-height:120px">${esc(m.examInstruction)}</textarea></label>
       <label class="f full" style="flex-direction:row; align-items:center; gap:8px"><input type="checkbox" id="s-answercard" ${m.answerCard?'checked':''}> Dodaj kartę odpowiedzi na końcu</label>`;
   } else {
@@ -390,7 +423,7 @@ function renderSettings(){
   settings.querySelector('#mode-seg').querySelectorAll('button').forEach(b=> b.onclick=()=>{ state.meta.mode=b.dataset.m; renderSettings(); });
   bindVal('s-subject','subject'); bindVal('s-worktype','workType'); bindVal('s-topic','topic');
   bindVal('s-duration','duration'); bindVal('s-date','date'); bindVal('s-instruction','instruction');
-  if(m.mode==='exam'){ bindVal('s-level','level'); bindVal('s-formula','formula'); bindVal('s-einstruction','examInstruction'); const ac=document.getElementById('s-answercard'); if(ac) ac.onchange=e=> state.meta.answerCard=e.target.checked; }
+  if(m.mode==='exam'){ bindVal('s-level','level'); bindVal('s-formula','formula'); bindVal('s-einstruction','examInstruction'); bindVal('s-start','startTime'); bindVal('s-symbol','symbol'); bindVal('s-sticker','stickerCode'); bindVal('s-cover','coverNotes'); const ac=document.getElementById('s-answercard'); if(ac) ac.onchange=e=> state.meta.answerCard=e.target.checked; }
   else { bindVal('s-klasa','klasa'); bindVal('s-subtitle','subtitle'); bindVal('s-instruction','instruction'); }
   settings.querySelector('#s-brudnopis').onchange=e=> state.meta.brudnopis=e.target.checked;
 }
@@ -721,16 +754,32 @@ function renderSheet(showKey){
   sheet.className='sheet mode-'+m.mode+(isAnnualExam(m)?' exam-blue':'');
   let h='';
   if(m.mode==='exam'){
-    h+=`<div class="exam-top">
-          <div class="brand"><svg width="20" height="20" viewBox="0 0 100 100"><polygon points="50,22 90,42 50,62 10,42" fill="currentColor"/></svg> ARKUSZ EGZAMINACYJNY</div>
-          <div style="max-width:52%; text-align:right">Arkusz zawiera informacje prawnie chronione do momentu rozpoczęcia egzaminu.</div>
-        </div>`;
-    h+=`<div class="exam-fill"><div class="bar">Wypełnia zdający</div>
-          <div class="codes"><div class="grp">KOD ${cells(7)}</div><div class="grp">PESEL ${cells(11)}</div></div></div>`;
-    h+=`<div class="exam-band"><span class="wt">${esc(m.workType)}</span>${m.formula?`<span class="fm">${esc(m.formula)}</span>`:''}</div>`;
-    h+=`<div class="exam-title"><div class="subj">${esc((m.subject||'').toUpperCase())}</div>${m.level?`<span class="lvl">${esc(m.level)}</span>`:''}</div>`;
-    if(m.topic) h+=`<div class="exam-topic"><span class="lab">Temat:</span>${esc(m.topic)}</div>`;
-    h+=`<div class="exam-meta">${m.date?`DATA: <b>${esc(m.date)}</b><br>`:''}${m.duration?`CZAS TRWANIA: <b>${esc(m.duration)} minut</b><br>`:''}LICZBA PUNKTÓW DO UZYSKANIA: <b>${max}</b></div>`;
+    const subj=(m.subject||'').toUpperCase();
+    const subjSize = subj.length>14 ? 30 : 46;
+    const notes=String(m.coverNotes||'').split('\n').map(l=>l.trim()).filter(Boolean);
+    const metaRow=(lab,val)=> val?`<div><span class="lb">${lab}:</span> <b>${esc(val)}</b></div>`:'';
+    h+=`<div class="exam-cover">
+      <div class="ec-top">
+        <div class="ec-brand"><svg width="34" height="34" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,20 92,42 50,64 8,42" fill="currentColor"/><path d="M30 54 v14 c0 7 9 12 20 12 s20 -5 20 -12 V54 L50 65 Z" fill="currentColor"/></svg><div><b>GAMIK</b><span>ARKUSZ EGZAMINACYJNY</span></div></div>
+        <div class="ec-legal">Arkusz zawiera informacje prawnie chronione do momentu rozpoczęcia egzaminu.</div>
+      </div>
+      <div class="ec-row">
+        <div class="ec-fill"><div class="bar">WYPEŁNIA ZDAJĄCY</div>
+          <div class="codes"><div class="grp"><span>KOD</span>${cells(3)}</div><div class="grp"><span>PESEL</span>${cells(11)}</div></div></div>
+        <div class="ec-sticker"><b>Miejsce na naklejkę.</b>${m.stickerCode?`<span>Sprawdź, czy kod na naklejce to <b class="code">${esc(m.stickerCode)}</b>.</span><span>Jeżeli tak – przyklej naklejkę.</span><span>Jeżeli nie – zgłoś to nauczycielowi.</span>`:''}</div>
+      </div>
+      <div class="ec-band"><span class="wt">${esc(m.workType)}</span>${m.formula?`<span class="fm">${esc(m.formula)}</span>`:''}</div>
+      <div class="ec-title"><div class="subj" style="font-size:${subjSize}pt">${esc(subj)}</div>${m.level?`<div class="lvl">${esc(m.level)}</div>`:''}</div>
+      ${m.symbol?`<div class="ec-symbol"><i>Symbol arkusza</i><b>${esc(m.symbol)}</b></div>`:''}
+      <div class="ec-info">
+        <div class="ec-meta">
+          ${metaRow('Temat', m.topic)}${metaRow('Data', m.date)}${metaRow('Godzina rozpoczęcia', m.startTime)}${metaRow('Czas trwania', m.duration?m.duration+' minut':'')}${metaRow('Liczba punktów do uzyskania', String(max))}
+        </div>
+        <div class="ec-zn"><div class="bar">WYPEŁNIA ZESPÓŁ NADZORUJĄCY</div><div class="b"><span class="chkbox"></span><span>Uprawnienie zdającego do dostosowania zasad oceniania.</span></div></div>
+      </div>
+      ${notes.length?`<div class="ec-before"><b>Przed rozpoczęciem pracy z arkuszem egzaminacyjnym</b><ol>${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ol></div>`:''}
+      <div class="ec-foot">Układ graficzny: Kreator prac pisemnych GAMIK</div>
+    </div>`;
     h+=`<div class="exam-instr fullpage"><div class="em-mark">${EM_MARK(m)}</div><h2 class="ei-h">Instrukcja dla zdającego</h2><ol class="ei-list">${instrLines(m.examInstruction)}</ol></div>`;
   } else {
     h+=`<div class="test-head"><div class="eyebrow">${esc(m.workType)} · ${esc(m.subject)}</div><h1>${esc(m.topic||'Temat pracy')}</h1>${m.subtitle?`<div class="sub">${esc(m.subtitle)}</div>`:''}</div>`;
@@ -754,7 +803,10 @@ function renderSheet(showKey){
       (t.subtasks||[]).forEach((s,si)=>{
         const sinfo=TYPES[s.type]||{icon:'',label:''}; const sp=parseInt(s.points)||0;
         const ssym=(m.mode==='exam'&&isClosedType(s.type))?CLOSED_SYMBOL:'';
-        bodyHTML+=`<div class="subtask"><div class="sub-head"><span class="sub-no">${i+1}.${si+1}.</span><span class="t-ic" title="${esc(sinfo.label)}">${esc(sinfo.icon)}</span>${ssym}<span class="t-pts">(0–${sp})</span></div>`;
+        const sic=`<span class="t-ic" title="${esc(sinfo.label)}">${esc(sinfo.icon)}</span>`;
+        bodyHTML+= m.mode==='exam'
+          ? `<div class="subtask"><div class="sub-head"><span class="sub-no">Zadanie ${i+1}.${si+1}.</span><span class="t-pts">(0–${sp})</span>${ssym}${sic}</div>`
+          : `<div class="subtask"><div class="sub-head"><span class="sub-no">${i+1}.${si+1}.</span>${sic}<span class="t-pts">(0–${sp})</span></div>`;
         if(s.content) bodyHTML+=`<div class="t-content">${richText(s.content)}</div>`;
         bodyHTML+=answerHTML(s,showKey);
         bodyHTML+=`</div>`;
@@ -769,7 +821,7 @@ function renderSheet(showKey){
     } else {
       const pts=`<span class="t-pts">(0–${pmax})</span>`;
       const sym=isClosedType(t.type)?CLOSED_SYMBOL:'';
-      const head=`<div class="t-head"><span class="zno">Zadanie ${i+1}.</span>${t.title?`<span class="t-title">${esc(t.title)}</span>`:''}${icon}${sym}${pts}</div>`;
+      const head=`<div class="t-head"><span class="zno">Zadanie ${i+1}.</span>${pts}${sym}${t.title?`<span class="t-title">${esc(t.title)}</span>`:''}${icon}</div>`;
       h+=`<div class="task${fp}"><div class="t-main">${head}${bodyHTML}</div></div>`;
     }
   });
@@ -1021,6 +1073,10 @@ document.getElementById('file-load').onchange=e=>{
     if(!obj.meta.mode) obj.meta.mode='test';
     if(!obj.meta.instruction) obj.meta.instruction=DEF_INSTR;
     if(!obj.meta.examInstruction) obj.meta.examInstruction=DEF_EXAM_INSTR;
+    if(obj.meta.coverNotes===undefined) obj.meta.coverNotes=DEF_COVER;
+    if(obj.meta.startTime===undefined) obj.meta.startTime='';
+    if(obj.meta.symbol===undefined) obj.meta.symbol='';
+    if(obj.meta.stickerCode===undefined) obj.meta.stickerCode='';
     if(obj.meta.answerCard===undefined) obj.meta.answerCard=true;
     obj.tasks.forEach(t=>{
       if(t.type==='math') t.type='math_open';
